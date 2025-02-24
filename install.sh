@@ -220,50 +220,38 @@ while true; do
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
-                7)
-            echo "Starting a new GaiaNet Node with a unique port..."
+             7)
+            echo "Starting GaiaNet with a random port..."
 
-            # Function to find an unused port in the range 8080-8083
-            find_unused_port() {
-                for port in {8080..8083}; do
-                    if ! lsof -i :"$port" >/dev/null 2>&1; then
-                        echo "$port"
+            CONFIG_PATH="/home/codespace/gaianet/config.json"
+
+            # Function to find an available port (between 3000 and 9000)
+            find_available_port() {
+                for port in $(seq 3000 9000); do
+                    if ! sudo lsof -i :$port > /dev/null 2>&1; then
+                        echo $port
                         return
                     fi
                 done
-                echo "❌ No available ports in range 8080-8083!" >&2
+                echo "❌ No available port found!" >&2
                 exit 1
             }
 
-            PORT=$(find_unused_port)
-            echo "✅ Found available port: $PORT"
+            # Get a random available port
+            RANDOM_PORT=$(find_available_port)
+            echo "✅ Using port: $RANDOM_PORT"
 
-            # Ensure config.json exists
-            CONFIG_PATH="/path/to/config.json"
-            if [ ! -f "$CONFIG_PATH" ]; then
+            # Update config.json with the new port
+            if [ -f "$CONFIG_PATH" ]; then
+                jq --arg port "$RANDOM_PORT" '.server.port = ($port | tonumber)' "$CONFIG_PATH" > temp.json && mv temp.json "$CONFIG_PATH"
+                echo "✅ Updated config.json with port $RANDOM_PORT"
+            else
                 echo "❌ Error: config.json not found at $CONFIG_PATH"
                 exit 1
             fi
 
-            # Update config.json with the selected port
-            jq --arg port "$PORT" '.server.port = ($port | tonumber)' "$CONFIG_PATH" > /tmp/config.json && mv /tmp/config.json "$CONFIG_PATH"
-
-            echo "✅ Updated config.json with port: $PORT"
-
-            # Start GaiaNet Node
-            GAIANET_CMD="gaianet start --config $CONFIG_PATH"
-
-            echo "🚀 Starting GaiaNet with: $GAIANET_CMD"
-            eval "$GAIANET_CMD"
-
-            # Verify if the node started
-            sleep 3
-            if lsof -i :"$PORT" > /dev/null 2>&1; then
-                echo "✅ GaiaNet Node successfully started on port $PORT"
-                gaianet info
-            else
-                echo "❌ Error: Failed to start GaiaNet on port $PORT!"
-            fi
+            # Start GaiaNet
+            gaianet start --config="$CONFIG_PATH"
             ;;
 
 
