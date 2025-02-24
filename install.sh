@@ -220,11 +220,11 @@ while true; do
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
-        7)
+         7)
             # Function to find an unused port in the range 8080-8083
             find_unused_port() {
                 for port in {8080..8083}; do
-                    if ! ss -tuln | grep -q ":$port "; then
+                    if ! lsof -i :"$port" >/dev/null 2>&1; then
                         echo "$port"
                         return
                     fi
@@ -234,15 +234,18 @@ while true; do
             }
 
             PORT=$(find_unused_port)
-            echo "Restarting GaiaNet Node on port $PORT..."
-            gaianet stop
-            gaianet init
+            echo "Starting a new GaiaNet Node on port $PORT..."
+
+            # Update config.json with the selected port (Modify the correct path)
+            jq --arg port "$PORT" '.server.port = ($port | tonumber)' /path/to/config.json > /tmp/config.json && mv /tmp/config.json /path/to/config.json
+
+            # Start GaiaNet with the new port
             gaianet start --port=$PORT
             gaianet info
             ;;
 
         8)
-            echo "Stopping GaiaNet Node..."
+            echo "Stopping a GaiaNet Node..."
             gaianet stop
             ;;
 
