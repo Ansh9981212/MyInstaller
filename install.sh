@@ -220,7 +220,9 @@ while true; do
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
-         7)
+                7)
+            echo "Starting a new GaiaNet Node with a unique port..."
+
             # Function to find an unused port in the range 8080-8083
             find_unused_port() {
                 for port in {8080..8083}; do
@@ -234,15 +236,36 @@ while true; do
             }
 
             PORT=$(find_unused_port)
-            echo "Starting a new GaiaNet Node on port $PORT..."
+            echo "✅ Found available port: $PORT"
 
-            # Update config.json with the selected port (Modify the correct path)
-            jq --arg port "$PORT" '.server.port = ($port | tonumber)' /path/to/config.json > /tmp/config.json && mv /tmp/config.json /path/to/config.json
+            # Ensure config.json exists
+            CONFIG_PATH="/path/to/config.json"
+            if [ ! -f "$CONFIG_PATH" ]; then
+                echo "❌ Error: config.json not found at $CONFIG_PATH"
+                exit 1
+            fi
 
-            # Start GaiaNet with the new port
-            gaianet start --port=$PORT
-            gaianet info
+            # Update config.json with the selected port
+            jq --arg port "$PORT" '.server.port = ($port | tonumber)' "$CONFIG_PATH" > /tmp/config.json && mv /tmp/config.json "$CONFIG_PATH"
+
+            echo "✅ Updated config.json with port: $PORT"
+
+            # Start GaiaNet Node
+            GAIANET_CMD="gaianet start --config $CONFIG_PATH"
+
+            echo "🚀 Starting GaiaNet with: $GAIANET_CMD"
+            eval "$GAIANET_CMD"
+
+            # Verify if the node started
+            sleep 3
+            if lsof -i :"$PORT" > /dev/null 2>&1; then
+                echo "✅ GaiaNet Node successfully started on port $PORT"
+                gaianet info
+            else
+                echo "❌ Error: Failed to start GaiaNet on port $PORT!"
+            fi
             ;;
+
 
         8)
             echo "Stopping a GaiaNet Node..."
