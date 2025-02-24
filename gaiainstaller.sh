@@ -1,5 +1,34 @@
 #!/bin/bash
+echo "🔧 Updating GaiaNet to use port 8081..."
 
+# Step 1: Find the GaiaNet configuration file
+CONFIG_PATH=$(find / -name "config.yaml" 2>/dev/null | head -n 1)
+
+if [ -z "$CONFIG_PATH" ]; then
+    echo "❌ GaiaNet configuration file not found!"
+    exit 1
+else
+    echo "✅ Found config file: $CONFIG_PATH"
+fi
+
+# Step 2: Modify the config file to set port 8081
+sudo sed -i 's/port: 8080/port: 8081/g' "$CONFIG_PATH"
+
+# Step 3: Restart GaiaNet
+echo "🔄 Restarting GaiaNet with new settings..."
+gaianet stop
+gaianet start
+
+# Step 4: Verify that GaiaNet is running on 8081
+sleep 3
+if sudo lsof -i :8081 > /dev/null 2>&1; then
+    echo -e "\e[1;32m✅ GaiaNet is now running on port 8081!\e[0m"
+else
+    echo -e "\e[1;31m❌ Error: GaiaNet failed to switch to 8081!\e[0m"
+    exit 1
+fi
+
+      
 # Check if screen is installed
 if ! command -v screen &> /dev/null; then
     echo "❌ Screen is not installed. Installing screen..."
@@ -222,10 +251,18 @@ while true; do
 
 7)
     echo "Restarting GaiaNet Node..."
+    
+    # Update port before restart
+    CONFIG_PATH=$(find / -name "config.yaml" 2>/dev/null | head -n 1)
+    if [ -n "$CONFIG_PATH" ]; then
+        echo "🔧 Changing GaiaNet port to 8081..."
+        sudo sed -i 's/port: 8080/port: 8081/g' "$CONFIG_PATH"
+    fi
+
     sudo netstat -tulnp | grep :8081
     gaianet stop
-    gaianet init --port 8081  # Ensure GaiaNet initializes on port 8081
-    gaianet start --port 8081  # Start on port 8081
+    gaianet init
+    gaianet start
     gaianet info
     ;;
 
