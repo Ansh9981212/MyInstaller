@@ -221,9 +221,20 @@ while true; do
             ;;
 
         7)
-            PORT=$((RANDOM % 4 + 8080))  # Random port selection (8080-8083)
+            # Function to find an unused port within range 8080-8083
+            find_unused_port() {
+                for port in {8080..8083}; do
+                    if ! sudo netstat -tulnp | grep -q ":$port "; then
+                        echo "$port"
+                        return
+                    fi
+                done
+                echo "❌ No available ports in range 8080-8083!" >&2
+                exit 1
+            }
+
+            PORT=$(find_unused_port)
             echo "Restarting GaiaNet Node on port $PORT..."
-            sudo netstat -tulnp | grep :$PORT
             gaianet stop
             gaianet init
             gaianet start --port=$PORT
@@ -231,9 +242,8 @@ while true; do
             ;;
 
         8)
-            PORT=$((RANDOM % 4 + 8080))
+            PORT=$(find_unused_port)
             echo "Stopping GaiaNet Node on port $PORT..."
-            sudo netstat -tulnp | grep :$PORT
             gaianet stop
             ;;
 
