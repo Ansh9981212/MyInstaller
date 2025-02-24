@@ -250,6 +250,23 @@ while true; do
             ;;
 
 7)
+    echo "🔧 Updating GaiaNet to use port 8081..."
+
+# Modify configuration files to use port 8081
+sed -i 's/"llamaedge_port": "8080"/"llamaedge_port": "8081"/g' /home/codespace/gaianet/dashboard/config_pub.json
+sed -i 's/"llamaedge_port": "8080"/"llamaedge_port": "8081"/g' /home/codespace/gaianet/config.json
+
+# Restart GaiaNet
+echo "🔄 Restarting GaiaNet with new settings..."
+gaianet stop
+gaianet start
+
+    
+    
+    
+    
+    
+    
     echo "Restarting GaiaNet Node..."
     
     # Update port before restart
