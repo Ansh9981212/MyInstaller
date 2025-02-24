@@ -153,7 +153,7 @@ while true; do
                 echo -e "\e[1;32m✅ GaiaNet is installed and detected. Proceeding with chatbot setup.\e[0m"
 
                 # Check if port 8080 is active using lsof
-                if sudo lsof -i :8080 > /dev/null 2>&1; then
+                if sudo lsof -i :8081 > /dev/null 2>&1; then
                     echo -e "\e[1;32m✅ GaiaNode is active. GaiaNet node is running.\e[0m"
                 else
                     echo -e "\e[1;31m❌ GaiaNode is not running.\e[0m"
@@ -222,7 +222,7 @@ while true; do
 
         7)
             echo "Restarting GaiaNet Node..."
-            sudo netstat -tulnp | grep :8080
+            sudo netstat -tulnp | grep :8081
             gaianet stop
             gaianet init
             gaianet start
@@ -231,7 +231,7 @@ while true; do
 
         8)
             echo "Stopping GaiaNet Node..."
-            sudo netstat -tulnp | grep :8080
+            sudo netstat -tulnp | grep :8081
             gaianet stop
             ;;
 
