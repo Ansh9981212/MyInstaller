@@ -220,43 +220,18 @@ while true; do
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
-             7)
-            echo "Starting GaiaNet with a random port..."
-
-            CONFIG_PATH="/home/codespace/gaianet/config.json"
-
-            # Function to find an available port (between 3000 and 9000)
-            find_available_port() {
-                for port in $(seq 3000 9000); do
-                    if ! sudo lsof -i :$port > /dev/null 2>&1; then
-                        echo $port
-                        return
-                    fi
-                done
-                echo "❌ No available port found!" >&2
-                exit 1
-            }
-
-            # Get a random available port
-            RANDOM_PORT=$(find_available_port)
-            echo "✅ Using port: $RANDOM_PORT"
-
-            # Update config.json with the new port
-            if [ -f "$CONFIG_PATH" ]; then
-                jq --arg port "$RANDOM_PORT" '.server.port = ($port | tonumber)' "$CONFIG_PATH" > temp.json && mv temp.json "$CONFIG_PATH"
-                echo "✅ Updated config.json with port $RANDOM_PORT"
-            else
-                echo "❌ Error: config.json not found at $CONFIG_PATH"
-                exit 1
-            fi
-
-            # Start GaiaNet
-            gaianet start --config="$CONFIG_PATH"
+        7)
+            echo "Restarting GaiaNet Node..."
+            sudo netstat -tulnp | grep :8080
+            gaianet stop
+            gaianet init
+            gaianet start
+            gaianet info
             ;;
 
-
         8)
-            echo "Stopping a GaiaNet Node..."
+            echo "Stopping GaiaNet Node..."
+            sudo netstat -tulnp | grep :8080
             gaianet stop
             ;;
 
