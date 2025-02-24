@@ -220,20 +220,21 @@ while true; do
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
-        7)
-            echo "Restarting GaiaNet Node..."
-            sudo netstat -tulnp | grep :8081
-            gaianet stop
-            gaianet init
-            gaianet start
-            gaianet info
-            ;;
+7)
+    echo "Restarting GaiaNet Node..."
+    sudo netstat -tulnp | grep :8081
+    gaianet stop
+    gaianet init --port 8081  # Ensure GaiaNet initializes on port 8081
+    gaianet start --port 8081  # Start on port 8081
+    gaianet info
+    ;;
 
-        8)
-            echo "Stopping GaiaNet Node..."
-            sudo netstat -tulnp | grep :8081
-            gaianet stop
-            ;;
+8)
+    echo "Stopping GaiaNet Node..."
+    sudo netstat -tulnp | grep :8081
+    gaianet stop
+    ;;
+
 
         9)
             echo "Checking Your Gaia Node ID & Device ID..."
