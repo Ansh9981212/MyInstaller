@@ -221,10 +221,10 @@ while true; do
             ;;
 
         7)
-            # Function to find an unused port within range 8080-8083
+            # Function to find an unused port in the range 8080-8083
             find_unused_port() {
                 for port in {8080..8083}; do
-                    if ! sudo netstat -tulnp | grep -q ":$port "; then
+                    if ! ss -tuln | grep -q ":$port "; then
                         echo "$port"
                         return
                     fi
@@ -242,8 +242,7 @@ while true; do
             ;;
 
         8)
-            PORT=$(find_unused_port)
-            echo "Stopping GaiaNet Node on port $PORT..."
+            echo "Stopping GaiaNet Node..."
             gaianet stop
             ;;
 
