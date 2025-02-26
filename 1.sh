@@ -17,6 +17,9 @@ printf "\n\n"
 
 # Port handling functions
 # Add after the banner and before dependencies
+# Add after the banner and before dependencies section
+
+# Port handling functions
 is_codespace() {
     [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
 }
@@ -35,35 +38,21 @@ get_random_port() {
     done
 }
 
-modify_wasmedge_command() {
+configure_wasmedge() {
     local port="$1"
     local install_dir="$HOME/gaianet"
     
-    # Find and modify the WasmEdge command in all relevant files
+    # Find and modify all WasmEdge commands
     find "$install_dir" -type f -exec sed -i "s|socket-addr 0.0.0.0:8080|socket-addr 0.0.0.0:$port|g" {} \;
     
-    # Update specific files that might contain the port
-    for file in "$install_dir"/bin/gaia.sh "$install_dir"/bin/gaianet "$install_dir"/config.yaml; do
-        if [ -f "$file" ]; then
-            sed -i "s|:8080|:$port|g" "$file"
-        fi
-    done
-}
-
-setup_node_port() {
-    local port="$1"
-    local config_dir="$HOME/gaianet"
-    
-    # Create config if it doesn't exist
-    mkdir -p "$config_dir"
+    # Update gaias configuration
+    find "$install_dir" -type f -exec sed -i "s|127.0.0.1:8080|127.0.0.1:$port|g" {} \;
     
     # Update config.yaml
-    cat > "$config_dir/config.yaml" << EOF
-node_id: default
-device_id: default
-port: $port
-log_level: info
-EOF
+    if [ -f "$install_dir/config.yaml" ]; then
+        sed -i "s|port:.*|port: $port|g" "$install_dir/config.yaml"
+    fi
+}
 
     # Update WasmEdge command in gaia.sh if it exists
     if [ -f "$config_dir/bin/gaia.sh" ]; then
@@ -268,12 +257,12 @@ fi
 PORT=$(get_random_port)
 echo "🔍 Selected port: $PORT"
 
-# Initialize GaiaNet with config
+# Initialize GaiaNet
 echo "⚙️ Initializing GaiaNet..."
 ~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
 
-# Modify WasmEdge command to use the random port
-modify_wasmedge_command "$PORT"
+# Configure WasmEdge with new port
+configure_wasmedge "$PORT"
 
 echo "🚀 Starting GaiaNet node..."
 ~/gaianet/bin/gaianet config --domain gaia.domains
@@ -282,7 +271,7 @@ echo "🚀 Starting GaiaNet node..."
 sudo pkill -f "wasmedge|gaianet" >/dev/null 2>&1
 sleep 3
 
-# Start node with new port
+# Start node
 ~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
 
 # Verify node is running
