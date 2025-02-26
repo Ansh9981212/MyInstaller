@@ -343,90 +343,89 @@ EOF
     fi
     ;;
        
-        4)
-            echo "Detecting system configuration..."
+    # Replace entire case 4 section
+4)
+    echo "Detecting system configuration..."
 
-            # Check if GaiaNet is installed
-            if ! command -v ~/gaianet/bin/gaianet &> /dev/null; then
-                echo -e "\e[1;31m❌ GaiaNet is not installed or not found. Please install it first.\e[0m"
-                echo -e "\e[1;33m🔍 If already installed, go back & press 9 to check: \e[1;32m'Node & Device Id'\e[0m"
-                read -rp "Press Enter to return to the main menu..."
-                continue
-            fi
+    # Check if GaiaNet is installed
+    if ! command -v ~/gaianet/bin/gaianet &> /dev/null; then
+        echo -e "\e[1;31m❌ GaiaNet is not installed. Please install it first.\e[0m"
+        read -rp "Press Enter to return to the main menu..."
+        continue
+    fi
 
-            # Check if GaiaNet is installed properly
-            gaianet_info=$( ~/gaianet/bin/gaianet info 2>/dev/null )
-            if [[ -z "$gaianet_info" ]]; then
-                echo -e "\e[1;31m❌ GaiaNet is installed but not configured properly. Uninstall & Re-install Again.\e[0m"
-                echo -e "\e[1;33m🔗 Visit: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m to check the node status Must be Green."
-                echo -e "\e[1;33m🔍 Run: \e[1;33m'go back & press 9 to check: \e[1;32m'Node & Device Id'\e[0m"
-                read -rp "Press Enter to return to the main menu..."
-                continue
-            fi
-
-            # Proceed if GaiaNet is properly installed
-            if [[ "$gaianet_info" == *"Node ID"* || "$gaianet_info" == *"Device ID"* ]]; then
-                echo -e "\e[1;32m✅ GaiaNet is installed and detected. Proceeding with chatbot setup.\e[0m"
-
-                    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
-        if [ -z "$port" ]; then
-            port="8080"  # Fallback to default if not found
-        fi
+    # Get current port or generate random port
+    config_file="$HOME/gaianet/config.yaml"
+    port=$(grep -r "port:" "$config_file" 2>/dev/null | awk '{print $2}')
+    
+    # Generate random port if none found
+    if [ -z "$port" ]; then
+        port=$((RANDOM % 20 + 8080))
+        while sudo lsof -i :"$port" > /dev/null 2>&1; do
+            port=$((RANDOM % 20 + 8080))
+        done
         
-        if sudo lsof -i :"$port" > /dev/null 2>&1; then
-            echo -e "\e[1;32m✅ GaiaNode is active. GaiaNet node is running on port $port.\e[0m"
-        else
-            echo -e "\e[1;31m❌ GaiaNode is not running.\e[0m"
-            echo -e "\e[1;33m🔗 Check Node Status Green Or Red: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m"
-            echo -e "\e[1;33m🔍 If Red, Please Back to Main Menu & Restart your GaiaNet node first.\e[0m"
-            read -rp "Press Enter to return to the main menu..."
-            continue
+        # Update config with new port
+        if [ -f "$config_file" ]; then
+            sudo sed -i "s/port: .*/port: $port/" "$config_file"
+            echo -e "\e[1;32m✅ Configured new port: $port\e[0m"
         fi
+    fi
 
-                # Function to check if the system is a VPS, laptop, or desktop
-                check_if_vps_or_laptop() {
-                    vps_type=$(systemd-detect-virt)
-                    if echo "$vps_type" | grep -qiE "kvm|qemu|vmware|xen|lxc"; then
-                        echo "✅ This is a VPS."
-                        return 0
-                    elif ls /sys/class/power_supply/ | grep -q "^BAT[0-9]"; then
-                        echo "✅ This is a Laptop."
-                        return 0
-                    else
-                        echo "✅ This is a Desktop."
-                        return 1
-                    fi
-                }
+    # Check node status and attempt restart if needed
+    if ! pgrep -f "wasmedge" > /dev/null; then
+        echo -e "\e[1;33m⚠️ Node not running. Attempting restart...\e[0m"
+        ~/gaianet/bin/gaianet stop 2>/dev/null
+        sleep 2
+        ~/gaianet/bin/gaianet init
+        ~/gaianet/bin/gaianet start
+        sleep 5
+    fi
 
-                # Determine the appropriate script based on system type
-                if check_if_vps_or_laptop; then
-                    script_name="gaiachat.sh"
-                else
-                    if command -v nvcc &> /dev/null || command -v nvidia-smi &> /dev/null; then
-                        echo "✅ NVIDIA GPU detected on Desktop. Running GPU-optimized Domain Chat..."
-                        script_name="gaiachat.sh"
-                    else
-                        echo "⚠️ No GPU detected on Desktop. Running Non-GPU version..."
-                        script_name="gaiachat.sh"
-                    fi
-                fi
+    # Verify node is running with port check
+    max_retries=3
+    retry_count=0
+    while ! sudo lsof -i :"$port" | grep -q "wasmedge"; do
+        if [ $retry_count -ge $max_retries ]; then
+            echo -e "\e[1;31m❌ Failed to start node after $max_retries attempts.\e[0m"
+            read -rp "Press Enter to return to the main menu..."
+            continue 2
+        fi
+        echo "🔄 Waiting for node to start... (Attempt $((retry_count + 1))/$max_retries)"
+        sleep 5
+        ((retry_count++))
+    done
 
-                # Start the chatbot in a detached screen session
-                screen -dmS gaiabot bash -c '
-                curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/'"$script_name"' && chmod +x '"$script_name"';
-                if [ -f "'"$script_name"'" ]; then
-                    ./'"$script_name"'
-                    exec bash
-                else
-                    echo "❌ Error: Failed to download '"$script_name"'"
-                    sleep 10
-                fi'
+    # Proceed with chatbot setup
+    echo -e "\e[1;32m✅ GaiaNode is active on port $port\e[0m"
+    
+    # Download and start chatbot
+    echo "🤖 Starting AI chatbot..."
+    script_name="gaiachat.sh"
+    
+    # Create new screen session for chatbot
+    screen -S gaiabot -dm bash -c '
+        curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/'"$script_name"';
+        chmod +x '"$script_name"';
+        if [ -f "'"$script_name"'" ]; then
+            ./'"$script_name"'
+        else
+            echo "❌ Failed to download chatbot script"
+            sleep 5
+        fi
+        exec bash'
 
-                sleep 2
-                screen -r gaiabot
-            fi
-            ;;
-
+    # Give screen time to initialize
+    sleep 2
+    
+    # Attach to screen session
+    if screen -list | grep -q "gaiabot"; then
+        screen -r gaiabot
+    else
+        echo -e "\e[1;31m❌ Failed to start chatbot session\e[0m"
+        read -rp "Press Enter to return to the main menu..."
+    fi
+    ;;
         5)
             select_screen_session
             ;;
