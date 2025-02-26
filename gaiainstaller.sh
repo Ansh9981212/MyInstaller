@@ -631,7 +631,7 @@ while true; do
             fi
             ;;
 
-              10)
+ 10)
             echo "⚠️ WARNING: This will completely remove GaiaNet Node from your system!"
             read -rp "Are you sure you want to proceed? (y/n) " confirm
             if [[ "$confirm" == "y" ]]; then
