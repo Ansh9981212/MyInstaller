@@ -253,7 +253,7 @@ while true; do
                         echo "✅ NVIDIA GPU detected on Desktop. Running GPU-optimized Domain Chat..."
                         script_name="gaiachat.sh"
                     else
-                        echo "⚠️ No GPU detected on Desktop. Running Non-GPU version..."
+                        echo "⚠️ No GPU detected on Desktop. Running Non-GGPU version..."
                         script_name="gaiachat.sh"
                     fi
                 fi
@@ -317,7 +317,8 @@ while true; do
             read -rp "Are you sure you want to proceed? (y/n) " confirm
             if [[ "$confirm" == "y" ]]; then
                 echo "🗑️ Uninstalling GaiaNet Node..."
-                curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download#!/bin/bash
+                curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/uninstall.sh' | bash
+                source ~/.#!/bin/bash
 
 # Check if sudo is installed
 if ! command -v sudo &> /dev/null; then
@@ -572,7 +573,7 @@ while true; do
                         echo "✅ NVIDIA GPU detected on Desktop. Running GPU-optimized Domain Chat..."
                         script_name="gaiachat.sh"
                     else
-                        echo "⚠️ No GPU detected on Desktop. Running Non-GPU version..."
+                        echo "⚠️ No GPU detected on Desktop. Running Non-GGPU version..."
                         script_name="gaiachat.sh"
                     fi
                 fi
@@ -636,7 +637,9 @@ while true; do
             read -rp "Are you sure you want to proceed? (y/n) " confirm
             if [[ "$confirm" == "y" ]]; then
                 echo "🗑️ Uninstalling GaiaNet Node..."
-            curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/uninstall.sh' | bash
+                curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/uninstall.sh' | bash
+                source ~/.
+
                 source ~/.bashrc
             else
                 echo "Uninstallation aborted."
@@ -690,3 +693,5 @@ while true; do
 
     read -rp "Press Enter to return to the main menu..."
 done
+
+                
