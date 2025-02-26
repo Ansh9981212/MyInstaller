@@ -187,6 +187,15 @@ echo -e "   \e[1;36m📊 Use this information to track your node's performance.\
 
 echo "==============================================================="
 
+
+echo -e "11) \e[1;43m\e[97m🔧  Manually Change GaiaNet Port\e[0m"
+echo -e "    \e[1;33m🔢 Manually set a custom port for your GaiaNet node.\e[0m"
+echo -e "    \e[1;33m🔄 Useful when you need a specific port configuration.\e[0m"
+echo -e "    \e[1;33m⚙️  Available range: 8080-8099\e[0m"
+echo "==============================================================="
+
+
+
     echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
     echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
     echo "==============================================================="
@@ -381,6 +390,90 @@ echo "==============================================================="
                 echo "Uninstallation aborted."
             fi
             ;;
+
+        11)
+            echo "🔧 Manual Port Configuration"
+            echo "==============================================================="
+            
+            # Get current port
+            current_port=$(grep -r "port:" ~/gaianet/config.yaml 2>/dev/null | awk '{print $2}' || echo "8080")
+            echo "Current port: $current_port"
+            
+            # Ask for new port
+            while true; do
+                read -rp "Enter new port number (8080-8099) or press Enter to cancel: " new_port
+                
+                # Check if user wants to cancel
+                if [ -z "$new_port" ]; then
+                    echo "Port change cancelled."
+                    break
+                fi
+                
+                # Validate port number
+                if [[ ! "$new_port" =~ ^808[0-9]$|^8099$ ]]; then
+                    echo "❌ Invalid port number. Please use a number between 8080-8099."
+                    continue
+                fi
+                
+                # Check if port is available
+                if sudo lsof -i :"$new_port" > /dev/null 2>&1; then
+                    echo "❌ Port $new_port is already in use. Please choose another port."
+                    continue
+                fi
+                
+                echo "🔄 Changing port to $new_port..."
+                
+                # Stop existing node
+                ~/gaianet/bin/gaianet stop
+                
+                # Update configuration files
+                config_files=(
+                    "$(find ~ -name "config.yaml" 2>/dev/null)"
+                    "/home/codespace/gaianet/dashboard/config_pub.json"
+                    "/home/codespace/gaianet/config.json"
+                )
+                
+                for config in "${config_files[@]}"; do
+                    if [ -f "$config" ]; then
+                        echo "📝 Updating port in $config..."
+                        if [[ $config == *.yaml ]]; then
+                            sudo sed -i "s/port: [0-9]*/port: $new_port/" "$config"
+                        else
+                            sudo sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$new_port\"/" "$config"
+                        fi
+                    fi
+                done
+                
+                # Restart node
+                echo "🔄 Restarting GaiaNet with new port..."
+                ~/gaianet/bin/gaianet init
+                ~/gaianet/bin/gaianet start
+                
+                # Verify port change
+                sleep 3
+                if sudo lsof -i :"$new_port" > /dev/null 2>&1; then
+                    echo -e "\e[1;32m✅ Successfully changed port to $new_port!\e[0m"
+                else
+                    echo -e "\e[1;31m❌ Failed to start on new port. Reverting to port $current_port\e[0m"
+                    # Revert changes
+                    for config in "${config_files[@]}"; do
+                        if [ -f "$config" ]; then
+                            if [[ $config == *.yaml ]]; then
+                                sudo sed -i "s/port: [0-9]*/port: $current_port/" "$config"
+                            else
+                                sudo sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$current_port\"/" "$config"
+                            fi
+                        fi
+                    done
+                    ~/gaianet/bin/gaianet init
+                    ~/gaianet/bin/gaianet start
+                fi
+                break
+            done
+            ;;
+
+
+
 
         0)
             echo "Exiting..."
