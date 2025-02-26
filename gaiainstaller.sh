@@ -344,78 +344,67 @@ EOF
     ;;
        
     # Replace entire case 4 section
+# Update the Option 4 case to be more reliable:
 4)
     echo "Detecting system configuration..."
     
-    # Quick installation check
+    # Check if script exists and remove if it does
+    [ -f "gaiachat.sh" ] && rm gaiachat.sh
+    
+    # Verify GaiaNet installation
     if [ ! -f ~/gaianet/bin/gaianet ]; then
-        echo -e "\e[1;31m❌ GaiaNet is not installed. Please install it first.\e[0m"
-        read -rp "Press Enter to return to main menu..."
+        echo -e "\e[1;31m❌ GaiaNet not installed\e[0m"
+        read -rp "Press Enter to continue..."
         continue
     fi
-
-    # Get port configuration
-    config_file="$HOME/gaianet/config.yaml"
-    port=$(grep -r "port:" "$config_file" 2>/dev/null | awk '{print $2}')
-
-    # Generate random port if needed
+    
+    # Get and validate port
+    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
     if [ -z "$port" ]; then
-        port=$((RANDOM % 20 + 8080))
-        while sudo lsof -i :"$port" > /dev/null 2>&1; do
-            port=$((RANDOM % 20 + 8080))
-        done
-        echo -e "\e[1;32m✅ Using port: $port\e[0m"
+        port="8080"
     fi
-
-    # Quick node restart
-    echo "🔄 Ensuring node is running..."
+    
+    # Ensure node is running
     ~/gaianet/bin/gaianet stop >/dev/null 2>&1
-    sleep 1
-    ~/gaianet/bin/gaianet start >/dev/null 2>&1
     sleep 2
-
-    # Simple status check
-    if pgrep -f "wasmedge" >/dev/null && sudo lsof -i :"$port" 2>/dev/null | grep -q "wasmedge"; then
-        echo -e "\e[1;32m✅ GaiaNet is running on port $port\e[0m"
-        
-        # Start chatbot in optimized way
-        echo "🤖 Starting AI chatbot..."
-        
-        # Clean up any existing sessions
-        screen -ls | grep "gaiabot" | cut -d. -f1 | xargs -r kill >/dev/null 2>&1
-        
-        # Download script with timeout and retry
-        for i in {1..3}; do
-            if curl -m 10 -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/gaiachat.sh; then
-                chmod +x gaiachat.sh
-                break
-            fi
-            echo "Retry $i downloading script..."
-            sleep 1
-        done
-
-        if [ ! -f "gaiachat.sh" ]; then
-            echo -e "\e[1;31m❌ Failed to download chatbot script\e[0m"
-            read -rp "Press Enter to return to main menu..."
-            continue
+    ~/gaianet/bin/gaianet start >/dev/null 2>&1
+    sleep 3
+    
+    # Verify node status
+    if ! ~/gaianet/bin/gaianet info >/dev/null 2>&1; then
+        echo -e "\e[1;31m❌ Failed to start GaiaNet\e[0m"
+        read -rp "Press Enter to continue..."
+        continue
+    fi
+    
+    # Download chat script with retry
+    max_retries=3
+    for ((i=1; i<=max_retries; i++)); do
+        echo "Downloading chat script (attempt $i/$max_retries)..."
+        if curl -m 30 -sLO "https://raw.githubusercontent.com/abhiag/Gaiatest/main/gaiachat.sh"; then
+            chmod +x gaiachat.sh
+            break
         fi
-
-        # Start screen session
-        screen -dmS gaiabot bash -c './gaiachat.sh || bash'
-        sleep 1
-        
-        if screen -list | grep -q "gaiabot"; then
-            screen -r gaiabot
-        else
-            echo -e "\e[1;31m❌ Failed to start chatbot\e[0m"
-            read -rp "Press Enter to return to main menu..."
-        fi
+        [ $i -eq $max_retries ] && {
+            echo -e "\e[1;31m❌ Failed to download chat script\e[0m"
+            read -rp "Press Enter to continue..."
+            continue 2
+        }
+        sleep 2
+    done
+    
+    # Start chat in screen session
+    screen -dmS gaiabot ./gaiachat.sh
+    sleep 2
+    
+    if screen -list | grep -q "gaiabot"; then
+        echo -e "\e[1;32m✅ Chat started successfully\e[0m"
+        screen -r gaiabot
     else
-        echo -e "\e[1;31m❌ GaiaNet failed to start\e[0m"
-        read -rp "Press Enter to return to main menu..."
+        echo -e "\e[1;31m❌ Failed to start chat session\e[0m"
+        read -rp "Press Enter to continue..."
     fi
     ;;
-        
         
         5)
             select_screen_session
