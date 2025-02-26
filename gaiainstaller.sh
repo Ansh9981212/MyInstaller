@@ -274,7 +274,6 @@ echo "==============================================================="
 
 
 # Modify the installation section (cases 1,2,3) to handle the port before running the WasmEdge command:
-
 1|2|3)
     echo "Installing Gaia-Node..."
     
@@ -295,49 +294,63 @@ echo "==============================================================="
     mkdir -p ~/gaianet/bin
     
     # Generate random port first
-    port=$((RANDOM % 21 + 8080))
+    port=$((RANDOM % 20 + 8080))
     while sudo lsof -i :"$port" > /dev/null 2>&1; do
-        port=$((RANDOM % 21 + 8080))
+        port=$((RANDOM % 20 + 8080))
     done
     echo "🔍 Selected port: $port"
     
-    # Download and modify installation script
+    # Download installation script
     echo "📥 Downloading installation script..."
     curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
     chmod +x 1.sh
     
-    # Modify the WasmEdge command in the installation script to use our random port
-    sed -i "s/:8080/:$port/g" 1.sh
+    # Modify the WasmEdge command in the installation script
+    echo "🔧 Configuring installation script with port $port..."
+    sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" 1.sh
     
     # Run installation script
     echo "🚀 Running installation script..."
     ./1.sh
     
-    # Check installation status
-    if [ -f ~/gaianet/bin/gaianet ]; then
-        echo -e "\e[1;32m✅ GaiaNet installation completed successfully!\e[0m"
-        
-        # Create or update config file with the selected port
-        config_file="$HOME/gaianet/config.yaml"
-        if [ ! -f "$config_file" ]; then
-            mkdir -p "$HOME/gaianet"
-            cat > "$config_file" << EOF
+    # Create or update config files
+    config_file="$HOME/gaianet/config.yaml"
+    mkdir -p "$HOME/gaianet"
+    
+    # Update or create main config
+    if [ -f "$config_file" ]; then
+        sed -i "s/port: [0-9]*/port: $port/" "$config_file"
+    else
+        cat > "$config_file" << EOF
 node_id: default
 device_id: default
 port: $port
 log_level: info
 EOF
-        else
-            sed -i "s/port: [0-9]*/port: $port/" "$config_file"
-        fi
-        
-        # Update other configuration files
-        dashboard_config="$HOME/gaianet/dashboard/config_pub.json"
-        if [ -f "$dashboard_config" ]; then
-            sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$port\"/" "$dashboard_config"
-        fi
-        
+    fi
+    
+    # Update dashboard config if it exists
+    dashboard_config="$HOME/gaianet/dashboard/config_pub.json"
+    if [ -f "$dashboard_config" ]; then
+        sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$port\"/" "$dashboard_config"
+    fi
+    
+    # Final verification
+    if [ -f ~/gaianet/bin/gaianet ]; then
+        echo -e "\e[1;32m✅ GaiaNet installation completed successfully!\e[0m"
         echo -e "\e[1;32m✅ Configuration completed with port $port\e[0m"
+        
+        # Start the node
+        ~/gaianet/bin/gaianet init >/dev/null 2>&1
+        ~/gaianet/bin/gaianet start
+        
+        # Verify port is active
+        sleep 3
+        if sudo lsof -i :"$port" | grep -q "wasmedge"; then
+            echo -e "\e[1;32m✅ Node is running on port $port\e[0m"
+        else
+            echo -e "\e[1;31m⚠️ Node started but port $port is not active\e[0m"
+        fi
     else
         echo -e "\e[1;31m❌ Installation failed. Please try again.\e[0m"
     fi
