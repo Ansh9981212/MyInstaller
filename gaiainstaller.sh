@@ -640,7 +640,7 @@ while true; do
                 curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/uninstall.sh' | bash
                 source ~/.
 
-                source ~/.bashrc
+            source ~/.bashrc
             else
                 echo "Uninstallation aborted."
             fi
@@ -663,7 +663,7 @@ while true; do
             fi
 
             # Modify other configuration files if necessary
-            sudo sed -i "s/\"llamaedge_port\": \"8080\"/\"llamaedge_port\": \"$port\"/g" /home/codespace/gaianet/dashboard/config_pub.json
+            sudo sed -i "s/\"llamaedge_port\": \"8080\"/\"llamaedge_port\": \"$port\"/g" /home/codespace/gaianet/dashboard_pub.json
             sudo sed -i "s/\"llamaedge_port\": \"8080\"/\"llamaedge_port\": \"$port\"/g" /home/codespace/gaianet/config.json
 
             # Restart GaiaNet with the new port
