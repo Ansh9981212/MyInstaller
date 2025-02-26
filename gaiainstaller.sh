@@ -36,6 +36,67 @@ else
     echo "✅ lsof is already installed."
 fi
 
+# Add after dependency checks
+check_and_fix_port() {
+    local config_file="$HOME/gaianet/config.yaml"
+    local port=$(grep -r "port:" "$config_file" 2>/dev/null | awk '{print $2}')
+    
+    echo "🔍 Checking port configuration..."
+    
+    # If no port found in config, use default
+    if [ -z "$port" ]; then
+        port="8080"
+    fi
+    
+    # Check if port is in use by another process
+    if sudo lsof -i :"$port" | grep -v "gaianet" > /dev/null 2>&1; then
+        echo "⚠️ Port $port is in use by another process"
+        # Find next available port
+        for new_port in {8080..8099}; do
+            if ! sudo lsof -i :"$new_port" > /dev/null 2>&1; then
+                port="$new_port"
+                break
+            fi
+        done
+    fi
+    
+    # Update configuration files with the port
+    config_files=(
+        "$config_file"
+        "$HOME/gaianet/dashboard/config_pub.json"
+        "$HOME/gaianet/config.json"
+    )
+    
+    for conf in "${config_files[@]}"; do
+        if [ -f "$conf" ]; then
+            if [[ $conf == *.yaml ]]; then
+                sudo sed -i "s/port: [0-9]*/port: $port/" "$conf"
+            else
+                sudo sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$port\"/" "$conf"
+            fi
+        fi
+    done
+    
+    # Restart the node to apply changes
+    ~/gaianet/bin/gaianet stop
+    sleep 2
+    ~/gaianet/bin/gaianet init
+    ~/gaianet/bin/gaianet start
+    
+    # Verify port is now active
+    sleep 3
+    if sudo lsof -i :"$port" | grep "gaianet" > /dev/null 2>&1; then
+        echo -e "\e[1;32m✅ Port $port is now active and in use by GaiaNet\e[0m"
+        return 0
+    else
+        echo -e "\e[1;31m❌ Failed to activate port $port\e[0m"
+        return 1
+    fi
+}
+
+
+
+
 # Function to list active screen sessions and allow user to select one
 select_screen_session() {
     while true; do
@@ -363,55 +424,18 @@ echo "==============================================================="
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 # Modify case 7 to use the new function
-        7)
+              7)
             echo "🔄 Restarting GaiaNet Node..."
-            
-            # Stop existing node
             ~/gaianet/bin/gaianet stop
+            sleep 2
             
-            # Check if default port 8080 is in use
-            if sudo lsof -i :8080 > /dev/null 2>&1; then
-                echo "⚠️ Default port 8080 is in use. Finding alternative port..."
-                
-                # Find available port
-                find_available_port
-                new_port=$?
-                
-                if [ $new_port -eq 1 ]; then
-                    echo "❌ Failed to find available port. Please free up some ports and try again."
-                    continue
-                fi
-                
-                echo "🔧 Configuring GaiaNet to use port $new_port..."
-                
-                # Update configuration files
-                config_files=(
-                    "$(find ~ -name "config.yaml" 2>/dev/null)"
-                    "/home/codespace/gaianet/dashboard/config_pub.json"
-                    "/home/codespace/gaianet/config.json"
-                )
-                
-                for config in "${config_files[@]}"; do
-                    if [ -f "$config" ]; then
-                        echo "📝 Updating port in $config..."
-                        if [[ $config == *.yaml ]]; then
-                            sudo sed -i "s/port: [0-9]*/port: $new_port/" "$config"
-                        else
-                            sudo sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$new_port\"/" "$config"
-                        fi
-                    fi
-                done
+            # Use the new function to handle port configuration
+            if ! check_and_fix_port; then
+                echo "❌ Failed to configure port properly. Please check logs."
+                continue
             fi
             
-            # Initialize and start node
-            ~/gaianet/bin/gaianet init
-            ~/gaianet/bin/gaianet start
-            
-            # Wait for node to start
-            echo "⏳ Waiting for node to start..."
-            sleep 5
-            
-            # Check node status
+            # Verify node is running
             if ~/gaianet/bin/gaianet info; then
                 echo -e "\e[1;32m✅ GaiaNet node successfully restarted!\e[0m"
             else
