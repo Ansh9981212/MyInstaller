@@ -72,6 +72,10 @@ install_cuda() {
     fi
 }
 
+
+
+
+
 # Function to set up CUDA environment variables
 setup_cuda_env() {
     echo "🔧 Setting up CUDA environment variables..."
@@ -160,9 +164,54 @@ elif [[ $SYSTEM_TYPE -eq 2 ]]; then
     fi
 fi
 
-# Initialize GaiaNet with the appropriate configuration
+# Add this function after the CUDA environment setup
+get_port_config() {
+    local port="${1:-8080}"  # Default to 8080 if no port provided
+    echo "🔍 Configuring port: $port"
+    
+    # Update WasmEdge command in gaia.sh
+    if [ -f "$HOME/gaianet/bin/gaia.sh" ]; then
+        sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" "$HOME/gaianet/bin/gaia.sh"
+    fi
+    
+    # Update config.yaml
+    if [ -f "$HOME/gaianet/config.yaml" ]; then
+        sed -i "s/port: [0-9]*/port: $port/" "$HOME/gaianet/config.yaml"
+    fi
+}
+
+
+# Replace the initialization section with:
+
+# Get port from environment or argument
+PORT="${GAIA_PORT:-${1:-8080}}"
+
+# Initialize and start GaiaNet with port configuration
 echo "⚙️ Initializing GaiaNet..."
+get_port_config "$PORT"
+
 ~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
+
+echo "🚀 Starting GaiaNet node..."
+~/gaianet/bin/gaianet config --domain gaia.domains
+
+# Stop any existing processes on the port
+sudo fuser -k "$PORT/tcp" 2>/dev/null
+sleep 2
+
+~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
+
+# Verify port is active
+sleep 3
+if ! sudo lsof -i :"$PORT" | grep -q "wasmedge"; then
+    echo "⚠️ Warning: Node may not be running on port $PORT"
+fi
+
+echo "🔍 Fetching GaiaNet node information..."
+~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
+
+
+
 
 # Start GaiaNet node
 echo "🚀 Starting GaiaNet node..."
