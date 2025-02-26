@@ -346,86 +346,77 @@ EOF
     # Replace entire case 4 section
 4)
     echo "Detecting system configuration..."
-
-    # Check if GaiaNet is installed
-    if ! command -v ~/gaianet/bin/gaianet &> /dev/null; then
+    
+    # Quick installation check
+    if [ ! -f ~/gaianet/bin/gaianet ]; then
         echo -e "\e[1;31m❌ GaiaNet is not installed. Please install it first.\e[0m"
-        read -rp "Press Enter to return to the main menu..."
+        read -rp "Press Enter to return to main menu..."
         continue
     fi
 
-    # Get current port or generate random port
+    # Get port configuration
     config_file="$HOME/gaianet/config.yaml"
     port=$(grep -r "port:" "$config_file" 2>/dev/null | awk '{print $2}')
-    
-    # Generate random port if none found
+
+    # Generate random port if needed
     if [ -z "$port" ]; then
         port=$((RANDOM % 20 + 8080))
         while sudo lsof -i :"$port" > /dev/null 2>&1; do
             port=$((RANDOM % 20 + 8080))
         done
-        
-        # Update config with new port
-        if [ -f "$config_file" ]; then
-            sudo sed -i "s/port: .*/port: $port/" "$config_file"
-            echo -e "\e[1;32m✅ Configured new port: $port\e[0m"
-        fi
+        echo -e "\e[1;32m✅ Using port: $port\e[0m"
     fi
 
-    # Check node status and attempt restart if needed
-    if ! pgrep -f "wasmedge" > /dev/null; then
-        echo -e "\e[1;33m⚠️ Node not running. Attempting restart...\e[0m"
-        ~/gaianet/bin/gaianet stop 2>/dev/null
-        sleep 2
-        ~/gaianet/bin/gaianet init
-        ~/gaianet/bin/gaianet start
-        sleep 5
-    fi
-
-    # Verify node is running with port check
-    max_retries=3
-    retry_count=0
-    while ! sudo lsof -i :"$port" | grep -q "wasmedge"; do
-        if [ $retry_count -ge $max_retries ]; then
-            echo -e "\e[1;31m❌ Failed to start node after $max_retries attempts.\e[0m"
-            read -rp "Press Enter to return to the main menu..."
-            continue 2
-        fi
-        echo "🔄 Waiting for node to start... (Attempt $((retry_count + 1))/$max_retries)"
-        sleep 5
-        ((retry_count++))
-    done
-
-    # Proceed with chatbot setup
-    echo -e "\e[1;32m✅ GaiaNode is active on port $port\e[0m"
-    
-    # Download and start chatbot
-    echo "🤖 Starting AI chatbot..."
-    script_name="gaiachat.sh"
-    
-    # Create new screen session for chatbot
-    screen -S gaiabot -dm bash -c '
-        curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/'"$script_name"';
-        chmod +x '"$script_name"';
-        if [ -f "'"$script_name"'" ]; then
-            ./'"$script_name"'
-        else
-            echo "❌ Failed to download chatbot script"
-            sleep 5
-        fi
-        exec bash'
-
-    # Give screen time to initialize
+    # Quick node restart
+    echo "🔄 Ensuring node is running..."
+    ~/gaianet/bin/gaianet stop >/dev/null 2>&1
+    sleep 1
+    ~/gaianet/bin/gaianet start >/dev/null 2>&1
     sleep 2
-    
-    # Attach to screen session
-    if screen -list | grep -q "gaiabot"; then
-        screen -r gaiabot
+
+    # Simple status check
+    if pgrep -f "wasmedge" >/dev/null && sudo lsof -i :"$port" 2>/dev/null | grep -q "wasmedge"; then
+        echo -e "\e[1;32m✅ GaiaNet is running on port $port\e[0m"
+        
+        # Start chatbot in optimized way
+        echo "🤖 Starting AI chatbot..."
+        
+        # Clean up any existing sessions
+        screen -ls | grep "gaiabot" | cut -d. -f1 | xargs -r kill >/dev/null 2>&1
+        
+        # Download script with timeout and retry
+        for i in {1..3}; do
+            if curl -m 10 -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/gaiachat.sh; then
+                chmod +x gaiachat.sh
+                break
+            fi
+            echo "Retry $i downloading script..."
+            sleep 1
+        done
+
+        if [ ! -f "gaiachat.sh" ]; then
+            echo -e "\e[1;31m❌ Failed to download chatbot script\e[0m"
+            read -rp "Press Enter to return to main menu..."
+            continue
+        fi
+
+        # Start screen session
+        screen -dmS gaiabot bash -c './gaiachat.sh || bash'
+        sleep 1
+        
+        if screen -list | grep -q "gaiabot"; then
+            screen -r gaiabot
+        else
+            echo -e "\e[1;31m❌ Failed to start chatbot\e[0m"
+            read -rp "Press Enter to return to main menu..."
+        fi
     else
-        echo -e "\e[1;31m❌ Failed to start chatbot session\e[0m"
-        read -rp "Press Enter to return to the main menu..."
+        echo -e "\e[1;31m❌ GaiaNet failed to start\e[0m"
+        read -rp "Press Enter to return to main menu..."
     fi
     ;;
+        
+        
         5)
             select_screen_session
             ;;
