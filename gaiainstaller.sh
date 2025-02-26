@@ -203,6 +203,29 @@ echo "==============================================================="
 
 
 
+echo -e "13) \e[1;42m\e[97m📊  Performance Monitor\e[0m"
+echo -e "    \e[1;32m📈 Monitor your node's performance metrics\e[0m"
+echo -e "    \e[1;32m🔍 Track CPU, RAM, and network usage\e[0m"
+echo -e "    \e[1;32m📱 Real-time status monitoring\e[0m"
+echo "==============================================================="
+
+
+echo -e "14) \e[1;44m\e[97m📋  View Node Logs\e[0m"
+echo -e "    \e[1;34m📝 View and analyze node logs\e[0m"
+echo -e "    \e[1;34m🔍 Track events and errors\e[0m"
+echo -e "    \e[1;34m📊 Debug node issues\e[0m"
+echo "==============================================================="
+
+
+# Add this to your menu options section
+echo -e "15) \e[1;45m\e[97m⚙️  Node Configuration Manager\e[0m"
+echo -e "    \e[1;35m🔧 Manage node settings and configuration\e[0m"
+echo -e "    \e[1;35m📝 Edit common configuration parameters\e[0m"
+echo -e "    \e[1;35m💾 Save and apply changes\e[0m"
+echo "==============================================================="
+
+
+
     echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
     echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
     echo "==============================================================="
@@ -544,6 +567,198 @@ echo "==============================================================="
                 ~/gaianet/bin/gaianet start
             fi
             ;;
+
+ 13)
+            echo "📊 GaiaNet Performance Monitor"
+            echo "==============================================================="
+            
+            while true; do
+                clear
+                echo "📊 System Performance Metrics"
+                echo "==============================================================="
+                
+                # CPU Usage
+                cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+                echo -e "CPU Usage: \e[1;33m$cpu_usage%\e[0m"
+                
+                # Memory Usage
+                mem_info=$(free -m)
+                total_mem=$(echo "$mem_info" | awk '/Mem:/ {print $2}')
+                used_mem=$(echo "$mem_info" | awk '/Mem:/ {print $3}')
+                mem_usage=$((used_mem * 100 / total_mem))
+                echo -e "Memory Usage: \e[1;33m$mem_usage%\e[0m ($used_mem MB / $total_mem MB)"
+                
+                # GaiaNet Process Status
+                if pgrep -f "gaianet" > /dev/null; then
+                    echo -e "GaiaNet Status: \e[1;32m🟢 Running\e[0m"
+                    
+                    # Port Status
+                    port=$(grep -r "port:" ~/gaianet/config.yaml 2>/dev/null | awk '{print $2}')
+                    if sudo lsof -i :"$port" > /dev/null 2>&1; then
+                        echo -e "Port Status: \e[1;32m🟢 Active on $port\e[0m"
+                    else
+                        echo -e "Port Status: \e[1;31m🔴 Not active\e[0m"
+                    fi
+                    
+                    # Process Resources
+                    echo "Process Details:"
+                    ps aux | grep "[g]aianet" | awk '{printf "PID: %s, CPU: %s%%, Memory: %s%%\n", $2, $3, $4}'
+                else
+                    echo -e "GaiaNet Status: \e[1;31m🔴 Not Running\e[0m"
+                fi
+                
+                echo "==============================================================="
+                echo "Press Ctrl+C to exit monitoring"
+                sleep 2
+            done
+            ;;
+
+
+  14)
+            echo "📋 GaiaNet Log Viewer"
+            echo "==============================================================="
+            
+            log_dir="$HOME/gaianet/logs"
+            if [ ! -d "$log_dir" ]; then
+                echo "❌ Log directory not found!"
+                break
+            fi
+            
+            while true; do
+                echo "Select log type:"
+                echo "1) Recent logs (last 50 lines)"
+                echo "2) Error logs"
+                echo "3) Full logs"
+                echo "4) Return to main menu"
+                
+                read -rp "Choose an option: " log_choice
+                
+                case $log_choice in
+                    1)
+                        echo "📑 Recent Logs:"
+                        find "$log_dir" -type f -name "*.log" -exec tail -n 50 {} \;
+                        ;;
+                    2)
+                        echo "❌ Error Logs:"
+                        find "$log_dir" -type f -name "*.log" -exec grep -i "error\|failed\|critical" {} \;
+                        ;;
+                    3)
+                        echo "📚 Full Logs:"
+                        find "$log_dir" -type f -name "*.log" -exec cat {} \;
+                        ;;
+                    4)
+                        break
+                        ;;
+                    *)
+                        echo "Invalid option"
+                        ;;
+                esac
+                
+                read -rp "Press Enter to continue..."
+            done
+            ;;
+
+
+
+    15)
+            echo "⚙️ GaiaNet Node Configuration Manager"
+            echo "==============================================================="
+            
+            config_file="$HOME/gaianet/config.yaml"
+            if [ ! -f "$config_file" ]; then
+                echo "❌ Configuration file not found!"
+                break
+            fi
+            
+            while true; do
+                clear
+                echo "Current Configuration:"
+                echo "==============================================================="
+                
+                # Display current settings
+                node_id=$(grep "node_id:" "$config_file" | awk '{print $2}')
+                device_id=$(grep "device_id:" "$config_file" | awk '{print $2}')
+                port=$(grep "port:" "$config_file" | awk '{print $2}')
+                log_level=$(grep "log_level:" "$config_file" | awk '{print $2}')
+                
+                echo -e "1) Node ID: \e[1;36m$node_id\e[0m"
+                echo -e "2) Device ID: \e[1;36m$device_id\e[0m"
+                echo -e "3) Port: \e[1;36m$port\e[0m"
+                echo -e "4) Log Level: \e[1;36m$log_level\e[0m"
+                echo "5) Save and restart node"
+                echo "6) Return to main menu"
+                echo "==============================================================="
+                
+                read -rp "Choose setting to modify (1-6): " config_choice
+                
+                case $config_choice in
+                    1)
+                        read -rp "Enter new Node ID: " new_node_id
+                        if [ -n "$new_node_id" ]; then
+                            sudo sed -i "s/node_id: .*/node_id: $new_node_id/" "$config_file"
+                            echo "✅ Node ID updated"
+                        fi
+                        ;;
+                    2)
+                        read -rp "Enter new Device ID: " new_device_id
+                        if [ -n "$new_device_id" ]; then
+                            sudo sed -i "s/device_id: .*/device_id: $new_device_id/" "$config_file"
+                            echo "✅ Device ID updated"
+                        fi
+                        ;;
+                    3)
+                        while true; do
+                            read -rp "Enter new port (8080-8099): " new_port
+                            if [[ "$new_port" =~ ^808[0-9]$|^8099$ ]]; then
+                                if ! sudo lsof -i :"$new_port" > /dev/null 2>&1; then
+                                    sudo sed -i "s/port: .*/port: $new_port/" "$config_file"
+                                    echo "✅ Port updated"
+                                    break
+                                else
+                                    echo "❌ Port $new_port is already in use"
+                                fi
+                            else
+                                echo "❌ Invalid port number"
+                            fi
+                        done
+                        ;;
+                    4)
+                        echo "Available log levels: debug, info, warn, error"
+                        read -rp "Enter new log level: " new_log_level
+                        if [[ "$new_log_level" =~ ^(debug|info|warn|error)$ ]]; then
+                            sudo sed -i "s/log_level: .*/log_level: $new_log_level/" "$config_file"
+                            echo "✅ Log level updated"
+                        else
+                            echo "❌ Invalid log level"
+                        fi
+                        ;;
+                    5)
+                        echo "🔄 Applying configuration changes..."
+                        ~/gaianet/bin/gaianet stop
+                        sleep 2
+                        ~/gaianet/bin/gaianet init
+                        ~/gaianet/bin/gaianet start
+                        
+                        # Verify node status
+                        sleep 3
+                        if ~/gaianet/bin/gaianet info &> /dev/null; then
+                            echo -e "\e[1;32m✅ Node successfully restarted with new configuration!\e[0m"
+                        else
+                            echo -e "\e[1;31m❌ Failed to restart node\e[0m"
+                        fi
+                        read -rp "Press Enter to continue..."
+                        ;;
+                    6)
+                        break
+                        ;;
+                    *)
+                        echo "Invalid option"
+                        sleep 1
+                        ;;
+                esac
+            done
+            ;;
+            
 
 
         0)
