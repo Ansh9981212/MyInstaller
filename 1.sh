@@ -16,24 +16,36 @@ printf "\n\n"
 # Add after the banner and before dependencies
 
 # Port handling functions
+# Add after the banner and before dependencies
 is_codespace() {
     [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
 }
 
 get_random_port() {
-    local min_port=8081  # Start after default port
+    local min_port=8081
     local max_port=8100
     local port
-    
-    # Kill any hanging processes
-    sudo pkill -f "wasmedge" >/dev/null 2>&1
-    sleep 2
     
     while true; do
         port=$((RANDOM % (max_port - min_port + 1) + min_port))
         if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
             echo "$port"
             break
+        fi
+    done
+}
+
+modify_wasmedge_command() {
+    local port="$1"
+    local install_dir="$HOME/gaianet"
+    
+    # Find and modify the WasmEdge command in all relevant files
+    find "$install_dir" -type f -exec sed -i "s|socket-addr 0.0.0.0:8080|socket-addr 0.0.0.0:$port|g" {} \;
+    
+    # Update specific files that might contain the port
+    for file in "$install_dir"/bin/gaia.sh "$install_dir"/bin/gaianet "$install_dir"/config.yaml; do
+        if [ -f "$file" ]; then
+            sed -i "s|:8080|:$port|g" "$file"
         fi
     done
 }
@@ -252,16 +264,16 @@ fi
 
 # Replace the initialization section
 
-# Get port from environment or generate new one
-PORT="${GAIA_PORT:-$(get_random_port)}"
-echo "🔍 Using port: $PORT"
+# Get random port
+PORT=$(get_random_port)
+echo "🔍 Selected port: $PORT"
 
-# Setup port configuration
-setup_node_port "$PORT"
-
-# Initialize GaiaNet
+# Initialize GaiaNet with config
 echo "⚙️ Initializing GaiaNet..."
 ~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
+
+# Modify WasmEdge command to use the random port
+modify_wasmedge_command "$PORT"
 
 echo "🚀 Starting GaiaNet node..."
 ~/gaianet/bin/gaianet config --domain gaia.domains
@@ -270,7 +282,7 @@ echo "🚀 Starting GaiaNet node..."
 sudo pkill -f "wasmedge|gaianet" >/dev/null 2>&1
 sleep 3
 
-# Start node
+# Start node with new port
 ~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
 
 # Verify node is running
@@ -282,9 +294,6 @@ if pgrep -f "wasmedge.*:$PORT" >/dev/null; then
         gh codespace ports forward "$PORT:$PORT" >/dev/null 2>&1 &
         echo "🌐 Codespace URL: https://$CODESPACE_NAME-$PORT.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
     fi
-    
-    echo "🔍 Fetching GaiaNet node information..."
-    ~/gaianet/bin/gaianet info
 else
     echo "❌ Node failed to start properly"
     echo "📋 Debug information:"
@@ -295,6 +304,8 @@ fi
 
 echo "🔍 Fetching GaiaNet node information..."
 ~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
+
+
 
 # Closing message
 echo "==========================================================="
