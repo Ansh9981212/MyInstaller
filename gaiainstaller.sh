@@ -302,9 +302,13 @@ echo "==============================================================="
     echo "🚀 Running installation script..."
     ./1.sh
     
-    # Check installation status
+    # Check installation status and configure random port
     if [ -f ~/gaianet/bin/gaianet ]; then
         echo -e "\e[1;32m✅ GaiaNet installation completed successfully!\e[0m"
+        # Initialize with random port
+        if ! check_and_fix_port; then
+            echo "❌ Failed to configure random port. Please check logs."
+        fi
     else
         echo -e "\e[1;31m❌ Installation failed. Please try again.\e[0m"
     fi
@@ -337,16 +341,20 @@ echo "==============================================================="
             if [[ "$gaianet_info" == *"Node ID"* || "$gaianet_info" == *"Device ID"* ]]; then
                 echo -e "\e[1;32m✅ GaiaNet is installed and detected. Proceeding with chatbot setup.\e[0m"
 
-                # Check if port 8080 is active using lsof
-                if sudo lsof -i :8080 > /dev/null 2>&1; then
-                    echo -e "\e[1;32m✅ GaiaNode is active. GaiaNet node is running.\e[0m"
-                else
-                    echo -e "\e[1;31m❌ GaiaNode is not running.\e[0m"
-                    echo -e "\e[1;33m🔗 Check Node Status Green Or Red: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m"
-                    echo -e "\e[1;33m🔍 If Red, Please Back to Main Menu & Restart your GaiaNet node first.\e[0m"
-                    read -rp "Press Enter to return to the main menu..."
-                    continue
-                fi
+                    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
+        if [ -z "$port" ]; then
+            port="8080"  # Fallback to default if not found
+        fi
+        
+        if sudo lsof -i :"$port" > /dev/null 2>&1; then
+            echo -e "\e[1;32m✅ GaiaNode is active. GaiaNet node is running on port $port.\e[0m"
+        else
+            echo -e "\e[1;31m❌ GaiaNode is not running.\e[0m"
+            echo -e "\e[1;33m🔗 Check Node Status Green Or Red: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m"
+            echo -e "\e[1;33m🔍 If Red, Please Back to Main Menu & Restart your GaiaNet node first.\e[0m"
+            read -rp "Press Enter to return to the main menu..."
+            continue
+        fi
 
                 # Function to check if the system is a VPS, laptop, or desktop
                 check_if_vps_or_laptop() {
@@ -423,12 +431,15 @@ echo "==============================================================="
                 echo -e "\e[1;31m❌ Error: Node failed to start properly. Please check logs.\e[0m"
             fi
             ;;
-
-        8)
-            echo "Stopping GaiaNet Node..."
-            sudo netstat -tulnp | grep :8080
-            ~/gaianet/bin/gaianet stop
-            ;;
+8)
+    echo "Stopping GaiaNet Node..."
+    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
+    if [ -z "$port" ]; then
+        port="8080"
+    fi
+    sudo netstat -tulnp | grep :"$port"
+    ~/gaianet/bin/gaianet stop
+    ;;
 
         9)
             echo "Checking Your Gaia Node ID & Device ID..."
