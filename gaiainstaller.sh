@@ -692,3 +692,56 @@ while true; do
 
     read -rp "Press Enter to return to the main menu..."
 done
+                source ~/.bashrc
+            else
+                echo "Uninstallation aborted."
+            fi
+            ;;
+
+        11)
+            echo "🔧 Checking for available ports starting from 8080..."
+            port=8080
+            while sudo lsof -i :$port > /dev/null 2>&1; do
+                echo "Port $port is in use. Trying next port..."
+                port=$((port + 1))
+            done
+            echo "✅ Available port found: $port"
+
+            # Update the configuration files with the new port
+            CONFIG_PATH=$(find / -name "config.yaml" 2>/dev/null | head -n 1)
+            if [ -n "$CONFIG_PATH" ]; then
+                echo "🔧 Changing GaiaNet port to $port in config.yaml..."
+                sudo sed -i "s/port: 8080/port: $port/g" "$CONFIG_PATH"
+            fi
+
+            # Modify other configuration files if necessary
+            sudo sed -i "s/\"llamaedge_port\": \"8080\"/\"llamaedge_port\": \"$port\"/g" /home/codespace/gaianet/dashboard/config_pub.json
+            sudo sed -i "s/\"llamaedge_port\": \"8080\"/\"llamaedge_port\": \"$port\"/g" /home/codespace/gaianet/config.json
+
+            # Restart GaiaNet with the new port
+            echo "🔄 Restarting GaiaNet with new settings..."
+            ~/gaianet/bin/gaianet stop
+            ~/gaianet/bin/gaianet start
+
+            # Verify that GaiaNet is running on the new port
+            sleep 3
+            if sudo lsof -i :$port > /dev/null 2>&1; then
+                echo -e "\e[1;32m✅ GaiaNet is now running on port $port!\e[0m"
+            else
+                echo -e "\e[1;31m❌ Error: GaiaNet failed to switch to port $port!\e[0m"
+                exit 1
+            fi
+            ;;
+
+        0)
+            echo "Exiting..."
+            exit 0
+            ;;
+
+        *)
+            echo "Invalid choice. Please try again."
+            ;;
+    esac
+
+    read -rp "Press Enter to return to the main menu..."
+done
