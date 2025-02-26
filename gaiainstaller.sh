@@ -188,6 +188,12 @@ echo -e "   \e[1;36m📊 Use this information to track your node's performance.\
 echo "==============================================================="
 
 
+  echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
+  echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
+  echo "==============================================================="
+
+
+
 echo -e "11) \e[1;43m\e[97m🔧  Manually Change GaiaNet Port\e[0m"
 echo -e "    \e[1;33m🔢 Manually set a custom port for your GaiaNet node.\e[0m"
 echo -e "    \e[1;33m🔄 Useful when you need a specific port configuration.\e[0m"
@@ -226,9 +232,7 @@ echo "==============================================================="
 
 
 
-    echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
-    echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
-    echo "==============================================================="
+
     
     echo -e "0) \e[1;31m❌  Exit Installer\e[0m"
     echo "==============================================================="
