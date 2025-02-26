@@ -284,9 +284,14 @@ echo "==============================================================="
     
   
 
-    # Get random port and ensure it's available
+  # In your gaiainstaller.sh, modify the installation case:
     port=$(get_random_port)
     echo "🔍 Selected port: $port"
+    
+    # Download and run installation script with port
+    curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+    chmod +x 1.sh
+    ./1.sh "$port"
     
     # Stop any existing processes
     ~/gaianet/bin/gaianet stop 2>/dev/null
