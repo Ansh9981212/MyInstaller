@@ -313,48 +313,85 @@ echo "==============================================================="
 1|2|3)
     echo "Installing Gaia-Node..."
     
-    # Stop existing processes
-    ~/gaianet/bin/gaianet stop 2>/dev/null
-    sudo pkill -f gaianet
-    sleep 2
+    # Stop any running processes
+    if pgrep -f "gaianet" > /dev/null; then
+        echo "🛑 Stopping existing GaiaNet processes..."
+        ~/gaianet/bin/gaianet stop 2>/dev/null
+        sleep 2
+        sudo pkill -f gaianet
+    fi
     
-    # Clean up
+    # Clean up existing files
+    echo "🧹 Cleaning up old installation files..."
     rm -rf 1.sh
+    
+    # Create necessary directories
+    echo "📁 Creating required directories..."
     mkdir -p ~/gaianet/bin
     
-    # Get random port
-    if is_codespace; then
-        port=$(setup_codespace)
-    else
-        port=$(get_random_port)
-    fi
-    echo "🔍 Using port: $port"
+    # Generate random port
+    port=$((RANDOM % 20 + 8080))
+    while sudo lsof -i :"$port" > /dev/null 2>&1; do
+        port=$((RANDOM % 20 + 8080))
+    done
+    echo "🔍 Selected port: $port"
     
-    # Download and modify installation script
+    # Download installation script
+    echo "📥 Downloading installation script..."
     curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
     chmod +x 1.sh
+    
+    # Modify the WasmEdge command in the installation script
+    echo "🔧 Configuring installation script with port $port..."
     sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" 1.sh
     
-    # Install
+    # Run installation script
+    echo "🚀 Running installation script..."
     ./1.sh
     
-    # Update configs
+    # Create or update config files
     config_file="$HOME/gaianet/config.yaml"
-    echo "port: $port" >> "$config_file"
+    mkdir -p "$HOME/gaianet"
     
-    # Start node
-    ~/gaianet/bin/gaianet init
-    ~/gaianet/bin/gaianet start
+    if [ -f "$config_file" ]; then
+        sed -i "s/port: [0-9]*/port: $port/" "$config_file"
+    else
+        cat > "$config_file" << EOF
+node_id: default
+device_id: default
+port: $port
+log_level: info
+EOF
+    fi
     
-    # Verify
-    sleep 5
-    if pgrep -f "wasmedge" >/dev/null; then
-        echo -e "\e[1;32m✅ Node started successfully on port $port\e[0m"
-        if is_codespace; then
-            echo "🌐 Access URL: https://$CODESPACE_NAME-$port.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+    # Update dashboard config if it exists
+    dashboard_config="$HOME/gaianet/dashboard/config_pub.json"
+    if [ -f "$dashboard_config" ]; then
+        sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$port\"/" "$dashboard_config"
+    fi
+    
+    # Final verification
+    if [ -f ~/gaianet/bin/gaianet ]; then
+        echo -e "\e[1;32m✅ GaiaNet installation completed successfully!\e[0m"
+        
+        # Start the node
+        ~/gaianet/bin/gaianet init >/dev/null 2>&1
+        ~/gaianet/bin/gaianet start
+        
+        # Verify port is active
+        sleep 3
+        if sudo lsof -i :"$port" | grep -q "wasmedge"; then
+            echo -e "\e[1;32m✅ Node is running on port $port\e[0m"
+            # Handle Codespace if needed
+            if is_codespace; then
+                gh codespace ports visibility $port:public >/dev/null 2>&1
+                echo "🌐 Access URL: https://$CODESPACE_NAME-$port.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+            fi
+        else
+            echo -e "\e[1;31m⚠️ Node started but port $port is not active\e[0m"
         fi
     else
-        echo -e "\e[1;31m❌ Node failed to start\e[0m"
+        echo -e "\e[1;31m❌ Installation failed. Please try again.\e[0m"
     fi
     ;;
     
