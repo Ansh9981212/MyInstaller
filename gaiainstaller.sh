@@ -37,28 +37,24 @@ else
 fi
 
 # Add after dependency checks
+# Update the check_and_fix_port function
 check_and_fix_port() {
     local config_file="$HOME/gaianet/config.yaml"
     local port=$(grep -r "port:" "$config_file" 2>/dev/null | awk '{print $2}')
     
     echo "🔍 Checking port configuration..."
     
-    # If no port found in config, use default
+    # Generate random port between 8080-8100 if no port found
     if [ -z "$port" ]; then
-        port="8080"
+        port=$((RANDOM % 21 + 8080))
     fi
     
-    # Check if port is in use by another process
-    if sudo lsof -i :"$port" | grep -v "gaianet" > /dev/null 2>&1; then
+    # Check if port is in use, if so try random ports until finding an available one
+    while sudo lsof -i :"$port" | grep -v "gaianet" > /dev/null 2>&1; do
         echo "⚠️ Port $port is in use by another process"
-        # Find next available port
-        for new_port in {8080..8099}; do
-            if ! sudo lsof -i :"$new_port" > /dev/null 2>&1; then
-                port="$new_port"
-                break
-            fi
-        done
-    fi
+        port=$((RANDOM % 21 + 8080))
+        echo "🔄 Trying port $port..."
+    done
     
     # Update configuration files with the port
     config_files=(
@@ -93,8 +89,6 @@ check_and_fix_port() {
         return 1
     fi
 }
-
-
 
 
 # Function to list active screen sessions and allow user to select one
