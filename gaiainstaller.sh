@@ -43,7 +43,7 @@ is_codespace() {
 }
 
 get_random_port() {
-    local min_port=8080
+    local min_port=8081
     local max_port=8100
     local port
     
