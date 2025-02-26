@@ -216,13 +216,59 @@ echo "==============================================================="
     read -rp "Enter your choice: " choice
 
     case $choice in
+
+
+    
         1|2|3)
-            echo "Install Gaia-Node for VPS or Non-GPU Users..."
+            echo "Installing Gaia-Node..."
+            
+            # Stop any running processes
+            if pgrep -f "gaianet" > /dev/null; then
+                echo "🛑 Stopping existing GaiaNet processes..."
+                ~/gaianet/bin/gaianet stop 2>/dev/null
+                sleep 2
+                sudo pkill -f gaianet
+            fi
+            
+            if pgrep frpc > /dev/null; then
+                echo "🛑 Stopping existing frpc processes..."
+                sudo pkill frpc
+                sleep 2
+            fi
+            
+            # Clean up existing files
+            echo "🧹 Cleaning up old installation files..."
             rm -rf 1.sh
+            sudo rm -rf /home/codespace/gaianet/bin/frpc
+            
+            # Create necessary directories
+            echo "📁 Creating required directories..."
+            sudo mkdir -p /home/codespace/gaianet/bin
+            sudo chown -R $USER:$USER /home/codespace/gaianet
+            
+            # Download and run installation script
+            echo "📥 Downloading installation script..."
             curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
             chmod +x 1.sh
+            
+            # Add small delay to ensure file handles are released
+            sleep 2
+            
+            # Run installation script
+            echo "🚀 Running installation script..."
             ./1.sh
+            
+            # Check installation status
+            if [ $? -eq 0 ] && [ -f "/home/codespace/gaianet/bin/frpc" ]; then
+                echo -e "\e[1;32m✅ GaiaNet installation completed successfully!\e[0m"
+            else
+                echo -e "\e[1;31m❌ Installation failed. Please try again.\e[0m"
+            fi
             ;;
+
+
+
+
        
         4)
             echo "Detecting system configuration..."
