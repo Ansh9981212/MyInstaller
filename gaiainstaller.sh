@@ -36,6 +36,42 @@ else
     echo "✅ lsof is already installed."
 fi
 
+# Add these environment checks at the start of the script, after the dependency checks
+# filepath: /workspaces/gaia/gaiainstaller.sh
+
+# Check if running in GitHub Codespace
+
+# Add after dependency checks
+
+# Function to check if running in GitHub Codespace
+is_codespace() {
+    [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
+}
+
+# Function to generate random available port
+get_random_port() {
+    local port
+    while true; do
+        port=$((RANDOM % 20 + 8080))
+        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
+            echo "$port"
+            break
+        fi
+    done
+}
+
+# Function to setup Codespace environment
+setup_codespace() {
+    local port=$(get_random_port)
+    echo "📡 Setting up GitHub Codespace environment..."
+    
+    # Configure port forwarding
+    gh codespace ports visibility $port:public >/dev/null 2>&1
+    gh codespace ports forward $port:$port >/dev/null 2>&1 &
+    
+    echo "✅ Port $port configured for Codespace"
+    echo "$port"
+
 # Add after dependency checks
 # Update the check_and_fix_port function
 check_and_fix_port() {
@@ -277,13 +313,51 @@ echo "==============================================================="
 1|2|3)
     echo "Installing Gaia-Node..."
     
-    # Stop any running processes
-    if pgrep -f "gaianet" > /dev/null; then
-        echo "🛑 Stopping existing GaiaNet processes..."
-        ~/gaianet/bin/gaianet stop 2>/dev/null
-        sleep 2
-        sudo pkill -f gaianet
+    # Stop existing processes
+    ~/gaianet/bin/gaianet stop 2>/dev/null
+    sudo pkill -f gaianet
+    sleep 2
+    
+    # Clean up
+    rm -rf 1.sh
+    mkdir -p ~/gaianet/bin
+    
+    # Get random port
+    if is_codespace; then
+        port=$(setup_codespace)
+    else
+        port=$(get_random_port)
     fi
+    echo "🔍 Using port: $port"
+    
+    # Download and modify installation script
+    curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+    chmod +x 1.sh
+    sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" 1.sh
+    
+    # Install
+    ./1.sh
+    
+    # Update configs
+    config_file="$HOME/gaianet/config.yaml"
+    echo "port: $port" >> "$config_file"
+    
+    # Start node
+    ~/gaianet/bin/gaianet init
+    ~/gaianet/bin/gaianet start
+    
+    # Verify
+    sleep 5
+    if pgrep -f "wasmedge" >/dev/null; then
+        echo -e "\e[1;32m✅ Node started successfully on port $port\e[0m"
+        if is_codespace; then
+            echo "🌐 Access URL: https://$CODESPACE_NAME-$port.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+        fi
+    else
+        echo -e "\e[1;31m❌ Node failed to start\e[0m"
+    fi
+    ;;
+    
     
     # Clean up existing files
     echo "🧹 Cleaning up old installation files..."
