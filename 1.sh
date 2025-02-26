@@ -295,7 +295,6 @@ echo "🔍 Fetching GaiaNet node information..."
 ~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
 
 
-
 # Closing message
 echo "==========================================================="
 echo "🎉 Congratulations! Your GaiaNet node is successfully set up!"
