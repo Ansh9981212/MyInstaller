@@ -36,29 +36,6 @@ else
     echo "✅ lsof is already installed."
 fi
 
-
-
-is_codespace() {
-    [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
-}
-
-get_random_port() {
-    local min_port=8081
-    local max_port=8100
-    local port
-    
-    while true; do
-        port=$((RANDOM % (max_port - min_port + 1) + min_port))
-        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
-            echo "$port"
-            break
-        fi
-    done
-}
-
-
-
-
 # Function to list active screen sessions and allow user to select one
 select_screen_session() {
     while true; do
@@ -197,68 +174,94 @@ echo "==============================================================="
     read -rp "Enter your choice: " choice
 
     case $choice in
-     1|2|3)
-    echo "Installing Gaia-Node..."
-    
-    # Stop existing processes
-    if pgrep -f "gaianet|wasmedge" > /dev/null; then
-        echo "🛑 Stopping existing processes..."
-        ~/gaianet/bin/gaianet stop 2>/dev/null
-        sleep 2
-        sudo pkill -f "gaianet|wasmedge"
-    fi
-    
-    # Get random port
-    port=$(get_random_port)
-    echo "🔍 Selected port: $port"
-    export GAIA_PORT="$port"
-    
-    # Download and run installation script
-    echo "📥 Downloading installation script..."
-    curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
-    chmod +x 1.sh
-    ./1.sh
-    
-    # Verify installation
-    if [ -f ~/gaianet/bin/gaianet ]; then
-        if pgrep -f "wasmedge.*:$port" >/dev/null; then
-            echo -e "\e[1;32m✅ Node running on port $port\e[0m"
-            if is_codespace; then
-                echo "🌐 Access URL: https://$CODESPACE_NAME-$port.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
-            fi
-        else
-            echo -e "\e[1;31m❌ Node failed to start properly\e[0m"
-        fi
-    fi
-    ;;
+        1|2|3)
+            echo "Install Gaia-Node for VPS or Non-GPU Users..."
+            rm -rf 1.sh
+            curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+            chmod +x 1.sh
+            ./1.sh
+            ;;
        
-4)
-    echo "Detecting system configuration..."
-    
-    if ! command -v ~/gaianet/bin/gaianet &> /dev/null; then
-        echo -e "\e[1;31m❌ GaiaNet not installed\e[0m"
-        read -rp "Press Enter to continue..."
-        continue
-    fi
-    
-    # Get active port from config
-    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
-    if [ -z "$port" ]; then
-        port=$(get_random_port)
-        echo "🔍 Using new port: $port"
-    fi
-    
-    # Start chatbot
-    if pgrep -f "wasmedge.*:$port" >/dev/null; then
-        echo -e "\e[1;32m✅ Node is running on port $port\e[0m"
-        script_name="gaiachat.sh"
-        screen -dmS gaiabot bash -c "curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/$script_name && chmod +x $script_name && ./$script_name"
-        sleep 2
-        screen -r gaiabot
-    else
-        echo -e "\e[1;31m❌ Node not running. Please restart node first\e[0m"
-    fi
-    ;;
+        4)
+            echo "Detecting system configuration..."
+
+            # Check if GaiaNet is installed
+            if ! command -v ~/gaianet/bin/gaianet &> /dev/null; then
+                echo -e "\e[1;31m❌ GaiaNet is not installed or not found. Please install it first.\e[0m"
+                echo -e "\e[1;33m🔍 If already installed, go back & press 9 to check: \e[1;32m'Node & Device Id'\e[0m"
+                read -rp "Press Enter to return to the main menu..."
+                continue
+            fi
+
+            # Check if GaiaNet is installed properly
+            gaianet_info=$( ~/gaianet/bin/gaianet info 2>/dev/null )
+            if [[ -z "$gaianet_info" ]]; then
+                echo -e "\e[1;31m❌ GaiaNet is installed but not configured properly. Uninstall & Re-install Again.\e[0m"
+                echo -e "\e[1;33m🔗 Visit: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m to check the node status Must be Green."
+                echo -e "\e[1;33m🔍 Run: \e[1;33m'go back & press 9 to check: \e[1;32m'Node & Device Id'\e[0m"
+                read -rp "Press Enter to return to the main menu..."
+                continue
+            fi
+
+            # Proceed if GaiaNet is properly installed
+            if [[ "$gaianet_info" == *"Node ID"* || "$gaianet_info" == *"Device ID"* ]]; then
+                echo -e "\e[1;32m✅ GaiaNet is installed and detected. Proceeding with chatbot setup.\e[0m"
+
+                # Check if port 8080 is active using lsof
+                if sudo lsof -i :8080 > /dev/null 2>&1; then
+                    echo -e "\e[1;32m✅ GaiaNode is active. GaiaNet node is running.\e[0m"
+                else
+                    echo -e "\e[1;31m❌ GaiaNode is not running.\e[0m"
+                    echo -e "\e[1;33m🔗 Check Node Status Green Or Red: \e[1;34mhttps://www.gaianet.ai/setting/nodes\e[0m"
+                    echo -e "\e[1;33m🔍 If Red, Please Back to Main Menu & Restart your GaiaNet node first.\e[0m"
+                    read -rp "Press Enter to return to the main menu..."
+                    continue
+                fi
+
+                # Function to check if the system is a VPS, laptop, or desktop
+                check_if_vps_or_laptop() {
+                    vps_type=$(systemd-detect-virt)
+                    if echo "$vps_type" | grep -qiE "kvm|qemu|vmware|xen|lxc"; then
+                        echo "✅ This is a VPS."
+                        return 0
+                    elif ls /sys/class/power_supply/ | grep -q "^BAT[0-9]"; then
+                        echo "✅ This is a Laptop."
+                        return 0
+                    else
+                        echo "✅ This is a Desktop."
+                        return 1
+                    fi
+                }
+
+                # Determine the appropriate script based on system type
+                if check_if_vps_or_laptop; then
+                    script_name="gaiachat.sh"
+                else
+                    if command -v nvcc &> /dev/null || command -v nvidia-smi &> /dev/null; then
+                        echo "✅ NVIDIA GPU detected on Desktop. Running GPU-optimized Domain Chat..."
+                        script_name="gaiachat.sh"
+                    else
+                        echo "⚠️ No GPU detected on Desktop. Running Non-GPU version..."
+                        script_name="gaiachat.sh"
+                    fi
+                fi
+
+                # Start the chatbot in a detached screen session
+                screen -dmS gaiabot bash -c '
+                curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/'"$script_name"' && chmod +x '"$script_name"';
+                if [ -f "'"$script_name"'" ]; then
+                    ./'"$script_name"'
+                    exec bash
+                else
+                    echo "❌ Error: Failed to download '"$script_name"'"
+                    sleep 10
+                fi'
+
+                sleep 2
+                screen -r gaiabot
+            fi
+            ;;
+
         5)
             select_screen_session
             ;;
@@ -272,20 +275,15 @@ echo "==============================================================="
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
 
- 7)
-    echo "Restarting GaiaNet Node..."
-    port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
-    ~/gaianet/bin/gaianet stop
-    sleep 2
-    ~/gaianet/bin/gaianet init
-    ~/gaianet/bin/gaianet start
-    sleep 3
-    if pgrep -f "wasmedge.*:$port" >/dev/null; then
-        echo -e "\e[1;32m✅ Node restarted successfully on port $port\e[0m"
-    else
-        echo -e "\e[1;31m❌ Node failed to restart\e[0m"
-    fi
-    ;;
+        7)
+            echo "Restarting GaiaNet Node..."
+            sudo netstat -tulnp | grep :8080
+            ~/gaianet/bin/gaianet stop
+            ~/gaianet/bin/gaianet init
+            ~/gaianet/bin/gaianet start
+            ~/gaianet/bin/gaianet info
+            ;;
+
         8)
             echo "Stopping GaiaNet Node..."
             sudo netstat -tulnp | grep :8080
