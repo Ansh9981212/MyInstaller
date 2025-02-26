@@ -92,7 +92,7 @@ get_random_port() {
     done
 }
 
-# Function to verify node status
+# Update the verify_node function
 verify_node() {
     local port=$1
     local max_retries=5
@@ -100,13 +100,18 @@ verify_node() {
     
     echo "🔍 Verifying node on port $port..."
     
+    # Stop any existing WasmEdge processes
+    sudo pkill -f wasmedge
+    
+    # Modify the WasmEdge command in the running script
+    if [ -f ~/gaianet/bin/gaia.sh ]; then
+        sudo sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" ~/gaianet/bin/gaia.sh
+    fi
+    
     while [ $retry -lt $max_retries ]; do
-        # Stop any process using the port
-        sudo fuser -k "$port/tcp" 2>/dev/null
-        
-        # Check if wasmedge is running on the port
         if pgrep -f "wasmedge.*:$port" >/dev/null; then
-            if ~/gaianet/bin/gaianet info &>/dev/null; then
+            # Check if the node is responding
+            if curl -s "http://localhost:$port/health" >/dev/null 2>&1; then
                 echo "✅ Node verified on port $port"
                 return 0
             fi
@@ -120,7 +125,6 @@ verify_node() {
     echo "❌ Node verification failed"
     return 1
 }
-
 
 
 
@@ -279,34 +283,62 @@ echo "==============================================================="
     mkdir -p ~/gaianet/bin
     
   
+
     # Get random port and ensure it's available
     port=$(get_random_port)
     echo "🔍 Selected port: $port"
     
-    # Stop any existing processes on the port
-    sudo fuser -k "$port/tcp" 2>/dev/null
+    # Stop any existing processes
+    ~/gaianet/bin/gaianet stop 2>/dev/null
+    sudo pkill -f "wasmedge|gaianet"
     sleep 2
     
-    # Download and modify installation script
+    # Download installation script
     echo "📥 Downloading installation script..."
     curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
     chmod +x 1.sh
     
-    # Modify WasmEdge command and config
-    sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" 1.sh
-    
-    # Update configuration
+    # Create or update config first
     config_file="$HOME/gaianet/config.yaml"
-    if [ -f "$config_file" ]; then
-        sed -i "s/port: [0-9]*/port: $port/" "$config_file"
-    else
-        mkdir -p "$HOME/gaianet"
-        cat > "$config_file" << EOF
+    mkdir -p "$HOME/gaianet"
+    cat > "$config_file" << EOF
 node_id: default
 device_id: default
 port: $port
 log_level: info
 EOF
+
+    # Install GaiaNet
+    ./1.sh
+    
+    # Update WasmEdge command in all relevant files
+    find ~/gaianet -type f -exec sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" {} \;
+    
+    # Start node with new port
+    echo "🔄 Starting node on port $port..."
+    ~/gaianet/bin/gaianet init >/dev/null 2>&1
+    ~/gaianet/bin/gaianet start
+    
+    # Handle Codespace environment
+    if is_codespace; then
+        echo "🌐 Configuring Codespace ports..."
+        gh codespace ports visibility "$port:public" >/dev/null 2>&1
+        gh codespace ports forward "$port:$port" >/dev/null 2>&1 &
+    fi
+    
+    # Verify installation with longer timeout
+    sleep 5
+    if verify_node "$port"; then
+        echo -e "\e[1;32m✅ Node successfully started on port $port\e[0m"
+        if is_codespace; then
+            echo "🌐 Access URL: https://$CODESPACE_NAME-$port.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+        fi
+        ~/gaianet/bin/gaianet info
+    else
+        echo -e "\e[1;31m❌ Node failed to start properly\e[0m"
+        echo "📋 Debug information:"
+        ps aux | grep -E "gaianet|wasmedge"
+        sudo lsof -i :"$port"
     fi
     
     # Start node
