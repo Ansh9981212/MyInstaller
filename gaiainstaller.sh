@@ -317,7 +317,7 @@ while true; do
             read -rp "Are you sure you want to proceed? (y/n) " confirm
             if [[ "$confirm" == "y" ]]; then
                 echo "🗑️ Uninstalling GaiaNet Node..."
-                curl -sSfL 'https://github.com/GaiaNet-AI/gaian#!/bin/bash
+                curl -sSfL 'https://github.com/G#!/bin/bash
 
 # Check if sudo is installed
 if ! command -v sudo &> /dev/null; then
@@ -635,8 +635,9 @@ while true; do
             echo "⚠️ WARNING: This will completely remove GaiaNet Node from your system!"
             read -rp "Are you sure you want to proceed? (y/n) " confirm
             if [[ "$confirm" == "y" ]]; then
+                echo "🗑️ Uninstalling GaiaNet Node..."
 
-                                echo "🗑️ Uninstalling GaiaNet Node..."
+                               echo "🗑️ Uninstalling GaiaNet Node..."
                 curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/uninstall.sh' | bash
                 source ~/.bashrc
             else
