@@ -1,3 +1,16 @@
+
+# Add port detection at the start
+port=$(grep -r "port:" "$HOME/gaianet/config.yaml" 2>/dev/null | awk '{print $2}')
+if [ -z "$port" ]; then
+    port="8080"
+fi
+
+# Update API calls to use the detected port
+BASE_URL="http://localhost:$port"
+
+
+
+
 #!/bin/bash
 
 # Function to check if NVIDIA CUDA or GPU is present
