@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Check if sudo is installed
 if ! command -v sudo &> /dev/null; then
     echo "❌ sudo is not installed. Installing sudo..."
@@ -23,7 +22,66 @@ if ! command -v ifconfig &> /dev/null; then
     echo "❌ net-tools is not installed. Installing net-tools..."
     sudo apt install -y net-tools
 
-# Add this function near the top with other functions
+# Add this function near the top of your script
+stop_running_processes() {
+    echo "🔄 Stopping running processes..."
+    
+    # Stop frpc if running
+    if pgrep frpc >/dev/null; then
+        echo "Stopping frpc process..."
+        sudo pkill frpc
+        sleep 2
+    fi
+    
+    # Stop gaianet if running
+    if pgrep -f gaianet >/dev/null; then
+        echo "Stopping gaianet process..."
+        ~/gaianet/bin/gaianet stop
+        sleep 2
+    fi
+    
+    # Force kill any remaining instances
+    if pgrep frpc >/dev/null || pgrep -f gaianet >/dev/null; then
+        echo "Force stopping remaining processes..."
+        sudo pkill -9 frpc
+        sudo pkill -9 -f gaianet
+        sleep 2
+    fi
+    
+    # Clean up any leftover files
+    sudo rm -f /tmp/frpc* 2>/dev/null
+}
+
+# Modify cases 1, 2, and 3 to include the new function
+        1|2|3)
+            echo "Installing Gaia-Node..."
+            
+            # Stop running processes first
+            stop_running_processes
+            
+            # Remove existing installation files
+            rm -rf 1.sh
+            
+            # Clean up the target directory
+            sudo rm -rf /home/codespace/gaianet/bin/frpc
+            
+            # Create directory if it doesn't exist
+            sudo mkdir -p /home/codespace/gaianet/bin
+            
+            # Download and execute installation script
+            curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+            chmod +x 1.sh
+            ./1.sh
+            
+            # Verify installation
+            if [ -f "/home/codespace/gaianet/bin/frpc" ]; then
+                echo "✅ Installation completed successfully"
+            else
+                echo "❌ Installation failed. Please try again"
+            fi
+            ;;
+
+
 find_available_port() {
     base_port=8080
     max_attempts=20
