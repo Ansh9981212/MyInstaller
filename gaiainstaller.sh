@@ -22,84 +22,6 @@ if ! command -v ifconfig &> /dev/null; then
     echo "❌ net-tools is not installed. Installing net-tools..."
     sudo apt install -y net-tools
 
-# Add this function near the top of your script
-stop_running_processes() {
-    echo "🔄 Stopping running processes..."
-    
-    # Stop frpc if running
-    if pgrep frpc >/dev/null; then
-        echo "Stopping frpc process..."
-        sudo pkill frpc
-        sleep 2
-    fi
-    
-    # Stop gaianet if running
-    if pgrep -f gaianet >/dev/null; then
-        echo "Stopping gaianet process..."
-        ~/gaianet/bin/gaianet stop
-        sleep 2
-    fi
-    
-    # Force kill any remaining instances
-    if pgrep frpc >/dev/null || pgrep -f gaianet >/dev/null; then
-        echo "Force stopping remaining processes..."
-        sudo pkill -9 frpc
-        sudo pkill -9 -f gaianet
-        sleep 2
-    fi
-    
-    # Clean up any leftover files
-    sudo rm -f /tmp/frpc* 2>/dev/null
-}
-
-# Modify cases 1, 2, and 3 to include the new function
-        1|2|3)
-            echo "Installing Gaia-Node..."
-            
-            # Stop running processes first
-            stop_running_processes
-            
-            # Remove existing installation files
-            rm -rf 1.sh
-            
-            # Clean up the target directory
-            sudo rm -rf /home/codespace/gaianet/bin/frpc
-            
-            # Create directory if it doesn't exist
-            sudo mkdir -p /home/codespace/gaianet/bin
-            
-            # Download and execute installation script
-            curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
-            chmod +x 1.sh
-            ./1.sh
-            
-            # Verify installation
-            if [ -f "/home/codespace/gaianet/bin/frpc" ]; then
-                echo "✅ Installation completed successfully"
-            else
-                echo "❌ Installation failed. Please try again"
-            fi
-            ;;
-
-
-find_available_port() {
-    base_port=8080
-    max_attempts=20
-    
-    echo "🔍 Checking for available ports..."
-    for ((i=0; i<max_attempts; i++)); do
-        current_port=$((base_port + i))
-        if ! sudo lsof -i :"$current_port" > /dev/null 2>&1; then
-            echo "✅ Found available port: $current_port"
-            return "$current_port"
-        fi
-        echo "⚠️ Port $current_port is in use, trying next port..."
-    done
-    
-    echo "❌ No available ports found in range $base_port-$((base_port + max_attempts - 1))"
-    return 1
-}
-
 
 
     
@@ -116,6 +38,85 @@ if ! command -v lsof &> /dev/null; then
 else
     echo "✅ lsof is already installed."
 fi
+
+# After dependency checks, add all functions
+else
+    echo "✅ lsof is already installed."
+fi
+
+
+
+
+
+# Function definitions
+stop_running_processes() {
+    echo "🔄 Stopping running processes..."
+    if pgrep frpc >/dev/null; then
+        echo "Stopping frpc process..."
+        sudo pkill frpc
+        sleep 2
+    fi
+    if pgrep -f gaianet >/dev/null; then
+        echo "Stopping gaianet process..."
+        ~/gaianet/bin/gaianet stop
+        sleep 2
+    fi
+    if pgrep frpc >/dev/null || pgrep -f gaianet >/dev/null; then
+        echo "Force stopping remaining processes..."
+        sudo pkill -9 frpc
+        sudo pkill -9 -f gaianet
+        sleep 2
+    fi
+    sudo rm -f /tmp/frpc* 2>/dev/null
+}
+
+find_available_port() {
+    base_port=8080
+    max_attempts=20
+    echo "🔍 Checking for available ports..."
+    for ((i=0; i<max_attempts; i++)); do
+        current_port=$((base_port + i))
+        if ! sudo lsof -i :"$current_port" > /dev/null 2>&1; then
+            echo "✅ Found available port: $current_port"
+            return "$current_port"
+        fi
+        echo "⚠️ Port $current_port is in use, trying next port..."
+    done
+    echo "❌ No available ports found in range $base_port-$((base_port + max_attempts - 1))"
+    return 1
+}
+
+select_screen_session() {
+    # ... existing select_screen_session function ...
+}
+
+# Main menu loop
+while true; do
+    clear
+    # ... menu display code ...
+    
+    read -rp "Enter your choice: " choice
+    
+    case $choice in
+        1|2|3)
+            echo "Installing Gaia-Node..."
+            stop_running_processes
+            rm -rf 1.sh
+            sudo rm -rf /home/codespace/gaianet/bin/frpc
+            sudo mkdir -p /home/codespace/gaianet/bin
+            curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+            chmod +x 1.sh
+            ./1.sh
+            ;;
+        # ... rest of case statements ...
+    esac
+done
+
+
+
+
+
+
 
 # Function to list active screen sessions and allow user to select one
 select_screen_session() {
