@@ -651,40 +651,52 @@ echo "==============================================================="
             ;;
 
 
-  14)
-            echo "📋 GaiaNet Log Viewer"
-            echo "==============================================================="
-            
-            log_dir="$HOME/gaianet/logs"
-            if [ ! -d "$log_dir" ]; then
-                echo "❌ Log directory not found!"
+ # Replace the problematic section (around line 687) with this corrected version:
+14)
+    echo "📋 GaiaNet Log Viewer"
+    echo "==============================================================="
+    
+    log_dir="$HOME/gaianet/logs"
+    if [ ! -d "$log_dir" ]; then
+        echo "❌ Log directory not found!"
+        break
+    fi
+    
+    while true; do
+        echo "Select log type:"
+        echo "1) Recent logs (last 50 lines)"
+        echo "2) Error logs"
+        echo "3) Full logs"
+        echo "4) Return to main menu"
+        
+        read -rp "Choose an option: " log_choice
+        
+        case $log_choice in
+            1)
+                echo "📑 Recent Logs:"
+                find "$log_dir" -type f -name "*.log" -exec tail -n 50 {} \;
+                ;;
+            2)
+                echo "❌ Error Logs:"
+                find "$log_dir" -type f -name "*.log" -exec grep -i "error\|failed\|critical" {} \;
+                ;;
+            3)
+                echo "📚 Full Logs:"
+                find "$log_dir" -type f -name "*.log" -exec cat {} \;
+                ;;
+            4)
                 break
-            fi
-            
-            while true; do
-                echo "Select log type:"
-                echo "1) Recent logs (last 50 lines)"
-                echo "2) Error logs"
-                echo "3) Full logs"
-                echo "4) Return to main menu"
-                
-                read -rp "Choose an option: " log_choice
-                
-                case $log_choice in
-                    1)
-                        echo "📑 Recent Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec tail -n 50 {} \;
-                        ;;
-                    2)
-                        echo "❌ Error Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec grep -i "error\|failed\|critical" {} \;
-                        ;;
-                    3)
-                        echo "📚 Full Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec cat {} \;
-                        ;;
-                    4)
-                        break15)
+                ;;
+            *)
+                echo "Invalid option"
+                ;;
+        esac
+        
+        read -rp "Press Enter to continue..."
+    done
+    ;;
+
+15)
     echo "⚙️ GaiaNet Node Configuration Manager"
     echo "==============================================================="
     
@@ -707,27 +719,9 @@ port: 8080
 log_level: info
 EOF
     fi
-                        ;;
-                    *)
-                        echo "Invalid option"
-                        ;;
-                esac
-                
-                read -rp "Press Enter to continue..."
-            done
-            ;;
-
-
-
-    15)
-            echo "⚙️ GaiaNet Node Configuration Manager"
-            echo "==============================================================="
-            
-            config_file="$HOME/gaianet/config.yaml"
-            if [ ! -f "$config_file" ]; then
-                echo "❌ Configuration file not found!"
-                break
-            fi
+    
+    while true; do
+        # Rest of your configuration manager code...
             
             while true; do
                 clear
