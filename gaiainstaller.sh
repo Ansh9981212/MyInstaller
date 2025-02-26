@@ -22,6 +22,29 @@ fi
 if ! command -v ifconfig &> /dev/null; then
     echo "❌ net-tools is not installed. Installing net-tools..."
     sudo apt install -y net-tools
+
+# Add this function near the top with other functions
+find_available_port() {
+    base_port=8080
+    max_attempts=20
+    
+    echo "🔍 Checking for available ports..."
+    for ((i=0; i<max_attempts; i++)); do
+        current_port=$((base_port + i))
+        if ! sudo lsof -i :"$current_port" > /dev/null 2>&1; then
+            echo "✅ Found available port: $current_port"
+            return "$current_port"
+        fi
+        echo "⚠️ Port $current_port is in use, trying next port..."
+    done
+    
+    echo "❌ No available ports found in range $base_port-$((base_port + max_attempts - 1))"
+    return 1
+}
+
+
+
+    
 else
     echo "✅ net-tools is already installed."
 fi
@@ -274,14 +297,61 @@ echo "==============================================================="
             find /var/run/screen -type s -name "*gaiabot*" -exec sudo rm -rf {} + 2>/dev/null
             echo -e "\e[32m✅ All 'gaiabot' screen sessions have been killed and wiped.\e[0m"
             ;;
-
+# Modify case 7 to use the new function
         7)
-            echo "Restarting GaiaNet Node..."
-            sudo netstat -tulnp | grep :8080
+            echo "🔄 Restarting GaiaNet Node..."
+            
+            # Stop existing node
             ~/gaianet/bin/gaianet stop
+            
+            # Check if default port 8080 is in use
+            if sudo lsof -i :8080 > /dev/null 2>&1; then
+                echo "⚠️ Default port 8080 is in use. Finding alternative port..."
+                
+                # Find available port
+                find_available_port
+                new_port=$?
+                
+                if [ $new_port -eq 1 ]; then
+                    echo "❌ Failed to find available port. Please free up some ports and try again."
+                    continue
+                fi
+                
+                echo "🔧 Configuring GaiaNet to use port $new_port..."
+                
+                # Update configuration files
+                config_files=(
+                    "$(find ~ -name "config.yaml" 2>/dev/null)"
+                    "/home/codespace/gaianet/dashboard/config_pub.json"
+                    "/home/codespace/gaianet/config.json"
+                )
+                
+                for config in "${config_files[@]}"; do
+                    if [ -f "$config" ]; then
+                        echo "📝 Updating port in $config..."
+                        if [[ $config == *.yaml ]]; then
+                            sudo sed -i "s/port: [0-9]*/port: $new_port/" "$config"
+                        else
+                            sudo sed -i "s/\"llamaedge_port\": \"[0-9]*\"/\"llamaedge_port\": \"$new_port\"/" "$config"
+                        fi
+                    fi
+                done
+            fi
+            
+            # Initialize and start node
             ~/gaianet/bin/gaianet init
             ~/gaianet/bin/gaianet start
-            ~/gaianet/bin/gaianet info
+            
+            # Wait for node to start
+            echo "⏳ Waiting for node to start..."
+            sleep 5
+            
+            # Check node status
+            if ~/gaianet/bin/gaianet info; then
+                echo -e "\e[1;32m✅ GaiaNet node successfully restarted!\e[0m"
+            else
+                echo -e "\e[1;31m❌ Error: Node failed to start properly. Please check logs.\e[0m"
+            fi
             ;;
 
         8)
