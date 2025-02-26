@@ -37,6 +37,27 @@ else
 fi
 
 
+setup_codespace_env() {
+    if is_codespace; then
+        echo "🌐 Setting up Codespace environment..."
+        # Ensure GitHub CLI is available
+        if ! command -v gh &>/dev/null; then
+            sudo apt update
+            sudo apt install -y gh
+        fi
+        # Configure port forwarding
+        gh codespace ports visibility 8080:public >/dev/null 2>&1
+        gh codespace ports forward 8080:8080 >/dev/null 2>&1 &
+    fi
+}
+
+# Call this function at script start
+setup_codespace_env
+
+
+
+
+
 # Add after dependency checks
 
 # Function to check environment
@@ -47,9 +68,24 @@ is_codespace() {
 # Function to get random available port
 get_random_port() {
     local port
+    local min_port=8081  # Start after default port
+    local max_port=8100
+    
+    # Kill any hanging processes on ports
+    for p in $(seq $min_port $max_port); do
+        if sudo lsof -i :"$p" >/dev/null 2>&1; then
+            sudo kill -9 $(sudo lsof -t -i:"$p") 2>/dev/null
+        fi
+    done
+    
     while true; do
-        port=$((RANDOM % 21 + 8080))
-        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
+        port=$((RANDOM % (max_port - min_port + 1) + min_port))
+        if ! sudo lsof -i :"$port" >/dev/null 2>&1; then
+            # For Codespace, ensure port is forwarded
+            if is_codespace; then
+                gh codespace ports visibility "$port:public" >/dev/null 2>&1
+                gh codespace ports forward "$port:$port" >/dev/null 2>&1 &
+            fi
             echo "$port"
             break
         fi
@@ -62,16 +98,28 @@ verify_node() {
     local max_retries=5
     local retry=0
     
+    echo "🔍 Verifying node on port $port..."
+    
     while [ $retry -lt $max_retries ]; do
-        if pgrep -f "wasmedge.*:$port" >/dev/null && ~/gaianet/bin/gaianet info &>/dev/null; then
-            return 0
+        # Stop any process using the port
+        sudo fuser -k "$port/tcp" 2>/dev/null
+        
+        # Check if wasmedge is running on the port
+        if pgrep -f "wasmedge.*:$port" >/dev/null; then
+            if ~/gaianet/bin/gaianet info &>/dev/null; then
+                echo "✅ Node verified on port $port"
+                return 0
+            fi
         fi
-        sleep 2
+        
+        echo "⏳ Waiting for node to start (attempt $((retry + 1))/$max_retries)..."
+        sleep 3
         ((retry++))
     done
+    
+    echo "❌ Node verification failed"
     return 1
 }
-
 
 
 
@@ -230,27 +278,29 @@ echo "==============================================================="
     rm -rf 1.sh
     mkdir -p ~/gaianet/bin
     
-    # Get random port
+  
+    # Get random port and ensure it's available
     port=$(get_random_port)
     echo "🔍 Selected port: $port"
+    
+    # Stop any existing processes on the port
+    sudo fuser -k "$port/tcp" 2>/dev/null
+    sleep 2
     
     # Download and modify installation script
     echo "📥 Downloading installation script..."
     curl -sLO https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
     chmod +x 1.sh
     
-    # Modify WasmEdge command
+    # Modify WasmEdge command and config
     sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" 1.sh
-    
-    # Install
-    echo "🚀 Installing GaiaNet..."
-    ./1.sh
     
     # Update configuration
     config_file="$HOME/gaianet/config.yaml"
     if [ -f "$config_file" ]; then
         sed -i "s/port: [0-9]*/port: $port/" "$config_file"
     else
+        mkdir -p "$HOME/gaianet"
         cat > "$config_file" << EOF
 node_id: default
 device_id: default
