@@ -644,52 +644,73 @@ echo "==============================================================="
             done
             ;;
 
-
- # Replace the problematic section (around line 687) with this corrected version:
-# Replace the case 14 and 15 sections with this corrected version:
-        14)
-            echo "📋 GaiaNet Log Viewer"
-            echo "==============================================================="
-            
-            log_dir="$HOME/gaianet/logs"
-            if [ ! -d "$log_dir" ]; then
-                echo "❌ Log directory not found!"
+# Replace case 14 section with this updated version:
+14)
+    echo "📋 GaiaNet Log Viewer"
+    echo "==============================================================="
+    
+    # Check multiple possible log directories
+    possible_log_dirs=(
+        "$HOME/gaianet/logs"
+        "$HOME/gaianet/log"
+        "$HOME/.gaianet/logs"
+        "$HOME/.gaianet/log"
+        "/var/log/gaianet"
+    )
+    
+    log_dir=""
+    for dir in "${possible_log_dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            log_dir="$dir"
+            break
+        fi
+    done
+    
+    if [ -z "$log_dir" ]; then
+        echo "⚠️ No standard log directory found."
+        # Try to find any log files in gaianet directory
+        log_files=$(find "$HOME/gaianet" -type f -name "*.log" 2>/dev/null)
+        if [ -z "$log_files" ]; then
+            echo "❌ No log files found anywhere in gaianet installation."
+            read -rp "Press Enter to return to main menu..."
+            continue
+        else
+            log_dir="$HOME/gaianet"
+        fi
+    fi
+    
+    while true; do
+        echo "Select log type:"
+        echo "1) Recent logs (last 50 lines)"
+        echo "2) Error logs"
+        echo "3) Full logs"
+        echo "4) Return to main menu"
+        
+        read -rp "Choose an option: " log_choice
+        
+        case $log_choice in
+            1)
+                echo "📑 Recent Logs:"
+                find "$log_dir" -type f -name "*.log" -exec tail -n 50 {} \; 2>/dev/null
+                ;;
+            2)
+                echo "❌ Error Logs:"
+                find "$log_dir" -type f -name "*.log" -exec grep -i "error\|failed\|critical" {} \; 2>/dev/null
+                ;;
+            3)
+                echo "📚 Full Logs:"
+                find "$log_dir" -type f -name "*.log" -exec cat {} \; 2>/dev/null
+                ;;
+            4)
                 break
-            fi
-            
-            while true; do
-                echo "Select log type:"
-                echo "1) Recent logs (last 50 lines)"
-                echo "2) Error logs"
-                echo "3) Full logs"
-                echo "4) Return to main menu"
-                
-                read -rp "Choose an option: " log_choice
-                
-                case $log_choice in
-                    1)
-                        echo "📑 Recent Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec tail -n 50 {} \;
-                        ;;
-                    2)
-                        echo "❌ Error Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec grep -i "error\|failed\|critical" {} \;
-                        ;;
-                    3)
-                        echo "📚 Full Logs:"
-                        find "$log_dir" -type f -name "*.log" -exec cat {} \;
-                        ;;
-                    4)
-                        break
-                        ;;
-                    *)
-                        echo "Invalid option"
-                        ;;
-                esac
-                read -rp "Press Enter to continue..."
-            done
-            ;;
-
+                ;;
+            *)
+                echo "Invalid option"
+                ;;
+        esac
+        read -rp "Press Enter to continue..."
+    done
+    ;;
         15)
             echo "⚙️ GaiaNet Node Configuration Manager"
             echo "==============================================================="
