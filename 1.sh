@@ -13,52 +13,21 @@ cat <<EOF
 EOF
 
 printf "\n\n"
-# Add after the banner and before dependencies
 
-# Port handling functions
-# Add after the banner and before dependencies
-# Add after the banner and before dependencies section
+##########################################################################################
+#                                                                                        
+#                🚀 THIS SCRIPT IS PROUDLY CREATED BY **GA CRYPTO**! 🚀                 
+#                                                                                        
+#   🌐 Join our revolution in decentralized networks and crypto innovation!               
+#                                                                                        
+# 📢 Stay updated:                                                                      
+#     • Follow us on Telegram: https://t.me/GaCryptOfficial                             
+#     • Follow us on X: https://x.com/GACryptoO                                         
+##########################################################################################
 
-# Port handling functions
-is_codespace() {
-    [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
-}
-
-get_random_port() {
-    local min_port=8081
-    local max_port=8100
-    local port
-    
-    while true; do
-        port=$((RANDOM % (max_port - min_port + 1) + min_port))
-        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
-            echo "$port"
-            break
-        fi
-    done
-}
-
-configure_wasmedge() {
-    local port="$1"
-    local install_dir="$HOME/gaianet"
-    
-    # Find and modify all WasmEdge commands
-    find "$install_dir" -type f -exec sed -i "s|socket-addr 0.0.0.0:8080|socket-addr 0.0.0.0:$port|g" {} \;
-    
-    # Update gaias configuration
-    find "$install_dir" -type f -exec sed -i "s|127.0.0.1:8080|127.0.0.1:$port|g" {} \;
-    
-    # Update config.yaml
-    if [ -f "$install_dir/config.yaml" ]; then
-        sed -i "s|port:.*|port: $port|g" "$install_dir/config.yaml"
-    fi
-}
-
-    # Update WasmEdge command in gaia.sh if it exists
-    if [ -f "$config_dir/bin/gaia.sh" ]; then
-        sed -i "s|socket-addr 0.0.0.0:[0-9]\+|socket-addr 0.0.0.0:$port|g" "$config_dir/bin/gaia.sh"
-    fi
-}
+# Green color for advertisement
+GREEN="\033[0;32m"
+RESET="\033[0m"
 
 # Ensure required packages are installed
 echo "📦 Installing dependencies..."
@@ -251,49 +220,16 @@ elif [[ $SYSTEM_TYPE -eq 2 ]]; then
     fi
 fi
 
-# Replace the initialization section
-
-# Get random port
-PORT=$(get_random_port)
-echo "🔍 Selected port: $PORT"
-
-# Initialize GaiaNet
+# Initialize and start GaiaNet
 echo "⚙️ Initializing GaiaNet..."
 ~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
 
-# Configure WasmEdge with new port
-configure_wasmedge "$PORT"
-
 echo "🚀 Starting GaiaNet node..."
 ~/gaianet/bin/gaianet config --domain gaia.domains
-
-# Stop any existing processes
-sudo pkill -f "wasmedge|gaianet" >/dev/null 2>&1
-sleep 3
-
-# Start node
 ~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
-
-# Verify node is running
-sleep 5
-if pgrep -f "wasmedge.*:$PORT" >/dev/null; then
-    echo "✅ Node successfully started on port $PORT"
-    if is_codespace; then
-        gh codespace ports visibility "$PORT:public" >/dev/null 2>&1
-        gh codespace ports forward "$PORT:$PORT" >/dev/null 2>&1 &
-        echo "🌐 Codespace URL: https://$CODESPACE_NAME-$PORT.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
-    fi
-else
-    echo "❌ Node failed to start properly"
-    echo "📋 Debug information:"
-    ps aux | grep -E "wasmedge|gaianet"
-    sudo lsof -i :"$PORT"
-    exit 1
-fi
 
 echo "🔍 Fetching GaiaNet node information..."
 ~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
-
 
 # Closing message
 echo "==========================================================="
