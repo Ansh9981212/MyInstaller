@@ -637,51 +637,65 @@ EOF
             fi
             ;;
 
- 13)
-            echo "📊 GaiaNet Performance Monitor"
-            echo "==============================================================="
+# Update the port status check in case 13
+13)
+    echo "📊 GaiaNet Performance Monitor"
+    echo "==============================================================="
+    
+    while true; do
+        clear
+        echo "📊 System Performance Metrics"
+        echo "==============================================================="
+        
+        # CPU Usage
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+        echo -e "CPU Usage: \e[1;33m$cpu_usage%\e[0m"
+        
+        # Memory Usage
+        mem_info=$(free -m)
+        total_mem=$(echo "$mem_info" | awk '/Mem:/ {print $2}')
+        used_mem=$(echo "$mem_info" | awk '/Mem:/ {print $3}')
+        mem_usage=$((used_mem * 100 / total_mem))
+        echo -e "Memory Usage: \e[1;33m$mem_usage%\e[0m ($used_mem MB / $total_mem MB)"
+        
+        # GaiaNet Process Status
+        if pgrep -f "gaianet" > /dev/null; then
+            echo -e "GaiaNet Status: \e[1;32m🟢 Running\e[0m"
             
-            while true; do
-                clear
-                echo "📊 System Performance Metrics"
-                echo "==============================================================="
-                
-                # CPU Usage
-                cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
-                echo -e "CPU Usage: \e[1;33m$cpu_usage%\e[0m"
-                
-                # Memory Usage
-                mem_info=$(free -m)
-                total_mem=$(echo "$mem_info" | awk '/Mem:/ {print $2}')
-                used_mem=$(echo "$mem_info" | awk '/Mem:/ {print $3}')
-                mem_usage=$((used_mem * 100 / total_mem))
-                echo -e "Memory Usage: \e[1;33m$mem_usage%\e[0m ($used_mem MB / $total_mem MB)"
-                
-                # GaiaNet Process Status
-                if pgrep -f "gaianet" > /dev/null; then
-                    echo -e "GaiaNet Status: \e[1;32m🟢 Running\e[0m"
-                    
-                    # Port Status
-                    port=$(grep -r "port:" ~/gaianet/config.yaml 2>/dev/null | awk '{print $2}')
-                    if sudo lsof -i :"$port" > /dev/null 2>&1; then
-                        echo -e "Port Status: \e[1;32m🟢 Active on $port\e[0m"
-                    else
-                        echo -e "Port Status: \e[1;31m🔴 Not active\e[0m"
-                    fi
-                    
-                    # Process Resources
-                    echo "Process Details:"
-                    ps aux | grep "[g]aianet" | awk '{printf "PID: %s, CPU: %s%%, Memory: %s%%\n", $2, $3, $4}'
-                else
-                    echo -e "GaiaNet Status: \e[1;31m🔴 Not Running\e[0m"
-                fi
-                
-                echo "==============================================================="
-                echo "Press Ctrl+C to exit monitoring"
+            # Port Status - Enhanced check
+            port=$(grep -r "port:" ~/gaianet/config.yaml 2>/dev/null | awk '{print $2}')
+            if [ -z "$port" ]; then
+                port="8080"  # Fallback to default if not found
+            fi
+            
+            # More comprehensive port check
+            if sudo lsof -i :"$port" | grep -q "gaianet\|wasmedge"; then
+                echo -e "Port Status: \e[1;32m🟢 Active on $port\e[0m"
+                # Additional port details
+                echo "Port Details:"
+                sudo lsof -i :"$port" | grep -E "gaianet|wasmedge" | awk '{printf "  Process: %s (PID: %s)\n", $1, $2}'
+            else
+                echo -e "Port Status: \e[1;31m🔴 Not active\e[0m"
+                echo "🔄 Attempting to restart service..."
+                ~/gaianet/bin/gaianet stop
                 sleep 2
-            done
-            ;;
-
+                ~/gaianet/bin/gaianet start
+            fi
+            
+            # Process Resources - Enhanced display
+            echo "Process Details:"
+            ps aux | grep -E "[g]aianet|[w]asmedge" | \
+                awk '{printf "PID: %s, Name: %s, CPU: %s%%, Memory: %s%%\n", $2, $11, $3, $4}'
+        else
+            echo -e "GaiaNet Status: \e[1;31m🔴 Not Running\e[0m"
+            echo "⚠️ Service appears to be down. Use option 7 from main menu to restart."
+        fi
+        
+        echo "==============================================================="
+        echo "Press Ctrl+C to exit monitoring"
+        sleep 2
+    done
+    ;;
 # Replace case 14 section with this updated version:
 14)
     echo "📋 GaiaNet Log Viewer"
