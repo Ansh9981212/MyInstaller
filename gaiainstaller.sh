@@ -195,6 +195,13 @@ echo -e "    \e[1;33m⚙️  Available range: 8080-8099\e[0m"
 echo "==============================================================="
 
 
+echo -e "12) \e[1;46m\e[97m🔄  Change Node ID & Device ID\e[0m"
+echo -e "    \e[1;36m🔑 Update your GaiaNet node's identifiers\e[0m"
+echo -e "    \e[1;36m📝 Useful when migrating or resetting your node\e[0m"
+echo -e "    \e[1;36m⚠️  This will require a node restart\e[0m"
+echo "==============================================================="
+
+
 
     echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
     echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
@@ -472,7 +479,71 @@ echo "==============================================================="
             done
             ;;
 
-
+        12)
+            echo "🔄 Node ID & Device ID Configuration"
+            echo "==============================================================="
+            
+            # Stop the node first
+            echo "🛑 Stopping GaiaNet node..."
+            ~/gaianet/bin/gaianet stop
+            
+            # Backup current configuration
+            config_file="$HOME/gaianet/config.yaml"
+            backup_file="$HOME/gaianet/config.yaml.backup"
+            
+            if [ -f "$config_file" ]; then
+                cp "$config_file" "$backup_file"
+                echo "📑 Created backup of current configuration"
+            fi
+            
+            # Get current IDs
+            current_node_id=$(grep "node_id:" "$config_file" 2>/dev/null | awk '{print $2}')
+            current_device_id=$(grep "device_id:" "$config_file" 2>/dev/null | awk '{print $2}')
+            
+            echo "Current Node ID: $current_node_id"
+            echo "Current Device ID: $current_device_id"
+            
+            # Ask for new IDs
+            read -rp "Enter new Node ID (or press Enter to keep current): " new_node_id
+            read -rp "Enter new Device ID (or press Enter to keep current): " new_device_id
+            
+            if [ -n "$new_node_id" ] || [ -n "$new_device_id" ]; then
+                echo "🔧 Updating configuration..."
+                
+                if [ -n "$new_node_id" ]; then
+                    sudo sed -i "s/node_id: .*/node_id: $new_node_id/" "$config_file"
+                    echo "✅ Updated Node ID"
+                fi
+                
+                if [ -n "$new_device_id" ]; then
+                    sudo sed -i "s/device_id: .*/device_id: $new_device_id/" "$config_file"
+                    echo "✅ Updated Device ID"
+                fi
+                
+                # Restart node with new configuration
+                echo "🔄 Restarting GaiaNet with new configuration..."
+                ~/gaianet/bin/gaianet init
+                ~/gaianet/bin/gaianet start
+                
+                # Verify the changes
+                sleep 3
+                new_info=$(~/gaianet/bin/gaianet info)
+                if [ $? -eq 0 ]; then
+                    echo -e "\e[1;32m✅ Successfully updated node configuration!\e[0m"
+                    echo "New configuration:"
+                    echo "$new_info"
+                else
+                    echo -e "\e[1;31m❌ Error: Failed to restart node with new configuration\e[0m"
+                    echo "🔄 Restoring backup configuration..."
+                    cp "$backup_file" "$config_file"
+                    ~/gaianet/bin/gaianet init
+                    ~/gaianet/bin/gaianet start
+                fi
+            else
+                echo "No changes made to configuration."
+                ~/gaianet/bin/gaianet start
+            fi
+            ;;
 
 
         0)
