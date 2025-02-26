@@ -14,16 +14,44 @@ EOF
 
 printf "\n\n"
 
-##########################################################################################
-#                                                                                        
-#                🚀 THIS SCRIPT IS PROUDLY CREATED BY **GA CRYPTO**! 🚀                 
-#                                                                                        
-#   🌐 Join our revolution in decentralized networks and crypto innovation!               
-#                                                                                        
-# 📢 Stay updated:                                                                      
-#     • Follow us on Telegram: https://t.me/GaCryptOfficial                             
-#     • Follow us on X: https://x.com/GACryptoO                                         
-##########################################################################################
+is_codespace() {
+    [[ -n "${CODESPACES}" ]] || [[ -n "${GITHUB_CODESPACE_TOKEN}" ]]
+}
+
+get_random_port() {
+    local min_port=8080
+    local max_port=8100
+    local port
+
+    while true; do
+        port=$((RANDOM % (max_port - min_port + 1) + min_port))
+        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
+            echo "$port"
+            break
+        fi
+    done
+}
+
+configure_node_port() {
+    local port="$1"
+    local config_dir="$HOME/gaianet"
+    
+    # Update WasmEdge socket address in relevant files
+    find "$config_dir" -type f -exec sed -i "s/0.0.0.0:8080/0.0.0.0:$port/g" {} 2>/dev/null \;
+    find "$config_dir" -type f -exec sed -i "s/127.0.0.1:8080/127.0.0.1:$port/g" {} 2>/dev/null \;
+    
+    # Update config.yaml
+    if [ -f "$config_dir/config.yaml" ]; then
+        sed -i "s/port: .*/port: $port/" "$config_dir/config.yaml"
+    fi
+    
+    # Handle Codespace port forwarding
+    if is_codespace; then
+        echo "🌐 Setting up Codespace port forwarding..."
+        gh codespace ports visibility "$port:public" >/dev/null 2>&1
+        gh codespace ports forward "$port:$port" >/dev/null 2>&1 &
+    fi
+}
 
 # Green color for advertisement
 GREEN="\033[0;32m"
@@ -222,11 +250,40 @@ fi
 
 # Initialize and start GaiaNet
 echo "⚙️ Initializing GaiaNet..."
+
+# Get random port
+PORT=$(get_random_port)
+echo "🔍 Selected port: $PORT"
+
+# Initialize with config
 ~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
+
+# Configure port
+configure_node_port "$PORT"
 
 echo "🚀 Starting GaiaNet node..."
 ~/gaianet/bin/gaianet config --domain gaia.domains
+
+# Stop any existing processes
+sudo pkill -f "wasmedge|gaianet" 2>/dev/null
+sleep 2
+
 ~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
+
+# Verify port is active
+sleep 5
+if sudo lsof -i :"$PORT" | grep -q "wasmedge"; then
+    echo "✅ Node successfully started on port $PORT"
+    if is_codespace; then
+        echo "🌐 Codespace URL: https://$CODESPACE_NAME-$PORT.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
+    fi
+else
+    echo "❌ Warning: Node may not be running on port $PORT"
+    echo "📋 Debug information:"
+    ps aux | grep -E "wasmedge|gaianet"
+    sudo lsof -i :"$PORT"
+    exit 1
+fi
 
 echo "🔍 Fetching GaiaNet node information..."
 ~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
