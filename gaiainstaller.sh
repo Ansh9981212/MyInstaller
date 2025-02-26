@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Check if sudo is installed
 if ! command -v sudo &> /dev/null; then
     echo "❌ sudo is not installed. Installing sudo..."
@@ -21,10 +22,6 @@ fi
 if ! command -v ifconfig &> /dev/null; then
     echo "❌ net-tools is not installed. Installing net-tools..."
     sudo apt install -y net-tools
-
-
-
-    
 else
     echo "✅ net-tools is already installed."
 fi
@@ -38,16 +35,6 @@ if ! command -v lsof &> /dev/null; then
 else
     echo "✅ lsof is already installed."
 fi
-
-# After dependency checks, add all functions
-else
-    echo "✅ lsof is already installed."
-fi
-
-
-
-
-
 
 # Function to list active screen sessions and allow user to select one
 select_screen_session() {
@@ -96,7 +83,6 @@ select_screen_session() {
         break
     done
 }
-
 while true; do
     clear
     echo "==============================================================="
