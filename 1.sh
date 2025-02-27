@@ -34,6 +34,15 @@ RESET="\033[0m"
 echo "📦 Installing dependencies..."
 sudo apt update -y && sudo apt install -y pciutils libgomp1 curl wget build-essential libglvnd-dev pkg-config libopenblas-dev libomp-dev
 
+
+# Add this with other package installations at the beginning
+
+# Ensure required packages are installed
+echo "📦 Installing dependencies..."
+sudo apt update -y && sudo apt install -y pciutils libgomp1 curl wget build-essential libglvnd-dev pkg-config libopenblas-dev libomp-dev jq
+
+
+
 # Detect if running inside WSL
 IS_WSL=false
 if grep -qi microsoft /proc/version; then
@@ -179,6 +188,23 @@ add_gaianet_to_path() {
     echo "✅ GaiaNet added to PATH successfully."
 }
 
+# Add after add_gaianet_to_path() function and before Main logic
+
+generate_random_port() {
+    local port
+    while true; do
+        port=$(shuf -i 8080-8500 -n 1)
+        if ! sudo lsof -i :"$port" > /dev/null 2>&1; then
+            echo "$port"
+            break
+        fi
+    done
+}
+
+
+
+
+
 # Main logic
 if check_nvidia_gpu; then
     setup_cuda_env
@@ -188,6 +214,10 @@ if check_nvidia_gpu; then
 else
     install_gaianet
 fi
+
+
+
+
 
 # Verify GaiaNet installation
 if [ -f ~/gaianet/bin/gaianet ]; then
@@ -223,18 +253,35 @@ fi
 
 # Initialize and start GaiaNet
 echo "⚙️ Initializing GaiaNet..."
-~/gaianet/bin/gaianet init --config "$CONFIG_URL" || { echo "❌ GaiaNet initialization failed!"; exit 1; }
+RANDOM_PORT=$(generate_random_port)
+echo "🔌 Selected port: $RANDOM_PORT"
 
-echo "🚀 Starting GaiaNet node..."
+# Download and modify config
+echo "📥 Downloading and modifying configuration..."
+TMP_CONFIG=$(mktemp)
+curl -s "$CONFIG_URL" > "$TMP_CONFIG"
+
+# Update port in config
+jq ".llamaedge_port = \"$RANDOM_PORT\"" "$TMP_CONFIG" > "$TMP_CONFIG.new"
+mv "$TMP_CONFIG.new" "$TMP_CONFIG"
+
+# Initialize with modified config
+~/gaianet/bin/gaianet init --config "file://$TMP_CONFIG" || { echo "❌ GaiaNet initialization failed!"; rm "$TMP_CONFIG"; exit 1; }
+
+# Cleanup
+rm "$TMP_CONFIG"
+
+echo "🚀 Starting GaiaNet node on port $RANDOM_PORT..."
 ~/gaianet/bin/gaianet config --domain gaia.domains
 ~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
 
 echo "🔍 Fetching GaiaNet node information..."
 ~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
 
-# Closing message
+# Update the closing message to include port information
 echo "==========================================================="
 echo "🎉 Congratulations! Your GaiaNet node is successfully set up!"
+echo "🔌 Node is running on port: $RANDOM_PORT"
 echo "🌟 Stay connected: Telegram: https://t.me/GaCryptOfficial | Twitter: https://x.com/GACryptoO"
 echo "💪 Together, let's build the future of decentralized networks!"
-echo "===========================================================" 
+echo "==========================================================="
