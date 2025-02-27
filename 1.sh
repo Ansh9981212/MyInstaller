@@ -30,6 +30,25 @@ printf "\n\n"
 GREEN="\033[0;32m"
 RESET="\033[0m"
 
+
+FORCE_GPU_MODE=""
+FORCE_CONFIG=""
+
+# Modify the check_nvidia_gpu function
+check_nvidia_gpu() {
+    # Add at the beginning of the function
+    if [ -n "$FORCE_GPU_MODE" ]; then
+        echo "⚠️ Running in forced GPU mode: $FORCE_GPU_MODE"
+        return 0
+    fi
+    ...existing check_nvidia_gpu code...
+}
+
+
+
+
+
+
 # Ensure required packages are installed
 echo "📦 Installing dependencies..."
 sudo apt update -y && sudo apt install -y pciutils libgomp1 curl wget build-essential libglvnd-dev pkg-config libopenblas-dev libomp-dev
@@ -52,15 +71,12 @@ else
     echo "🖥️ Running on a native Ubuntu system."
 fi
 
-# Check if an NVIDIA GPU is present
 check_nvidia_gpu() {
-    if command -v nvidia-smi &> /dev/null || lspci | grep -i nvidia &> /dev/null; then
-        echo "✅ NVIDIA GPU detected."
+    if [ -n "$FORCE_GPU_MODE" ]; then
+        echo "⚠️ Running in forced GPU mode: $FORCE_GPU_MODE"
         return 0
-    else
-        echo "⚠️ No NVIDIA GPU found."
-        return 1
     fi
+    # ...existing nvidia check code...
 }
 
 # Check if the system is a VPS, Laptop, or Desktop
@@ -228,27 +244,37 @@ else
     exit 1
 fi
 
-# Determine system type and set configuration URL
-check_system_type
-SYSTEM_TYPE=$?  # Capture the return value of check_system_type
+# Replace the existing configuration section
+if [ -n "$FORCE_CONFIG" ]; then
+    CONFIG_URL="$FORCE_CONFIG"
+    echo "⚠️ Using forced configuration: $CONFIG_URL"
+else
+    if [[ $SYSTEM_TYPE -eq 0 ]]; then
+        # VPS
+        CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
+    elif [[ $SYSTEM_TYPE -eq 1 ]]; then
+        # Laptop
+        if ! check_nvidia_gpu; then
+            CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
+        else
+            CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config1.json"
+        fi
+    elif [[ $SYSTEM_TYPE -eq 2 ]]; then
+        # Desktop
+        if ! check_nvidia_gpu; then
+            CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
+        else
+            CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config3.json"
+        fi
+    fi
+fi
 
-if [[ $SYSTEM_TYPE -eq 0 ]]; then
-    # VPS
-    CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
-elif [[ $SYSTEM_TYPE -eq 1 ]]; then
-    # Laptop
-    if ! check_nvidia_gpu; then
-        CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
-    else
-        CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config1.json"
-    fi
-elif [[ $SYSTEM_TYPE -eq 2 ]]; then
-    # Desktop
-    if ! check_nvidia_gpu; then
-        CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"
-    else
-        CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config3.json"
-    fi
+# Add before the initialization section
+if [ -n "$FORCE_GPU_MODE" ]; then
+    echo "⚠️ WARNING: Running in forced GPU mode without hardware verification"
+    echo "⚠️ This may affect performance or cause instability"
+    echo "⚠️ Press Ctrl+C within 5 seconds to abort..."
+    sleep 5
 fi
 
 # Initialize and start GaiaNet
