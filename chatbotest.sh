@@ -1,4 +1,60 @@
-#!/bin/bash
+# Check for existing API keys
+API_KEY_DIR="/root/.gaianet_keys"
+mkdir -p "$API_KEY_DIR"
+
+EXISTING_KEYS=($(find "$API_KEY_DIR" -type f 2>/dev/null))
+
+if [ ${#EXISTING_KEYS[@]} -gt 0 ]; then
+    echo "Available API key files:"
+    select KEY_FILE in "${EXISTING_KEYS[@]}" "Enter a new API key"; do
+        if [[ "$KEY_FILE" == "Enter a new API key" ]]; then
+            break
+        elif [[ -n "$KEY_FILE" ]]; then
+            API_KEY=$(cat "$KEY_FILE")
+            echo "Using API key from: $KEY_FILE"
+            VALID_KEY=true
+            break
+        else
+            echo "Invalid selection. Try again."
+        fi
+    done
+fi
+
+# If no valid key was selected, ask for a new one
+if [ -z "$API_KEY" ] || [ "$VALID_KEY" != "true" ]; then
+    while true; do
+        read -p "Enter your GaiaNet API Key: " API_KEY
+        echo
+
+        if [ -z "$API_KEY" ]; then
+            echo "❌ Error: API Key is required!"
+            echo "🔄 Restarting the installer..."
+
+            # Restart the installer (only if running from gaiainstaller.sh)
+            if [[ $0 == *gaiainstaller.sh ]]; then
+                rm -rf ~/gaiainstaller.sh
+                curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/gaiainstaller.sh
+                chmod +x gaiainstaller.sh
+                exec ./gaiainstaller.sh  # Use exec to replace current process
+            else
+                exit 1
+            fi
+        else
+            break  # Exit loop if API key is provided
+        fi
+    done
+
+    # Save the new API key
+    read -p "Enter a name for the API key file: " FILE_NAME
+    API_KEY_FILE="$API_KEY_DIR/$FILE_NAME"
+
+    echo "$API_KEY" > "$API_KEY_FILE"
+    chmod 600 "$API_KEY_FILE"
+    echo "API Key saved as $API_KEY_FILE."
+fi
+
+# Continue script...
+echo "Starting GaiaNet with API Key: $API_KEY"
 
 # Function to check if NVIDIA CUDA or GPU is present
 check_cuda() {
@@ -50,8 +106,8 @@ set_api_url() {
     elif [ "$system_type" -eq 2 ]; then
         # Desktop
         if [ "$cuda_present" -eq 0 ]; then
-            API_URL="https://gacrypto.gaia.domains/v1/chat/completions"
-            API_NAME="GaCrypto"
+            API_URL="https://gadao.gaia.domains/v1/chat/completions"
+            API_NAME="Gadao"
         else
             API_URL="https://hyper.gaia.domains/v1/chat/completions"
             API_NAME="Hyper"
@@ -81,111 +137,59 @@ fi
 # Function to get a random general question based on the API URL
 generate_random_general_question() {
     if [[ "$API_URL" == "https://hyper.gaia.domains/v1/chat/completions" ]]; then
-        general_questions=(
-            "What color is the sky?"
-            "How many legs does a dog have?"
-            "What sound does a cat make?"
-            "Which number comes after 4?"
-            "What is the opposite of 'hot'?"
-            "What do you use to brush your teeth?"
-            "What is the first letter of the alphabet?"
-            "What shape is a football?"
-            "How many fingers do humans have?"
-            "What is 1 + 1?"
-            "What do you wear on your feet?"
-            "What animal says 'moo'?"
-            "How many eyes does a person have?"
-            "What do you call a baby dog?"
-            "Which fruit is yellow and curved?"
-            "What do you drink when you're thirsty?"
-            "What do bees make?"
-            "What is the name of our planet?"
-            "What do you do with a book?"
-            "What color is grass?"
-            "What is the opposite of 'up'?"
-            "How many wheels does a bicycle have?"
-            "Where do fish live?"
-            "What do you use to write on a blackboard?"
-            "What shape is a pizza?"
-            "What do you call a baby cat?"
-            "What is 5 minus 2?"
-            "What do you use to cut paper?"
-            "What is the color of a banana?"
-            "What do birds use to fly?"
-            "What do you wear on your head to keep warm?"
-            "How many days are in a week?"
-            "What do you use an umbrella for?"
-            "What does ice turn into when it melts?"
-            "How many ears does a rabbit have?"
-            "Which season comes after summer?"
-            "What color is the sun?"
-            "What do cows give us to drink?"
-            "Which fruit is red and has seeds inside?"
-            "What do you do with a bed?"
-            "What sound does a duck make?"
-            "How many toes do you have?"
-            "What do you call a baby chicken?"
-            "What do you put on your cereal?"
-            "Which is bigger, an elephant or a mouse?"
-            "What do you do with a spoon?"
-            "How many arms does an octopus have?"
-            "What is the color of a strawberry?"
-            "Which day comes after Monday?"
-            "What do you use to open a door?"
-            "What sound does a cow make?"
-            "Where do penguins live?"
-            "What do you call a baby horse?"
-            "What do you use to write on paper?"
-            "Which is faster, a car or a bicycle?"
-            "How many ears does a human have?"
-            "What do you wear on your hands when it’s cold?"
-            "What do you use to see things?"
-            "What do you do with a pillow?"
-            "How many arms does a starfish have?"
-            "What is the color of a lemon?"
-            "What do you call a house for birds?"
-            "Where do chickens live?"
-            "Which is taller, a giraffe or a cat?"
-            "What do you use to comb your hair?"
-            "What do you call a baby sheep?"
-            "How many hands does a clock have?"
-            "What do you call a place with lots of books?"
-            "Which animal has a long trunk?"
-            "What is the color of a watermelon?"
-            "What do you do with a TV?"
-            "What is the opposite of small?"
-            "How many sides does a triangle have?"
-            "What do you call a group of stars in the sky?"
-            "What do you use to eat soup?"
-            "What do you use to clean your hands?"
-            "What do monkeys love to eat?"
-            "Where do polar bears live?"
-            "What do you call a baby cow?"
-            "What does a clock show?"
-            "What do you wear when it’s raining?"
-            "What is something that barks?"
-            "What do you use to make a phone call?"
-            "What do you use to wash your hair?"
-            "What do you do with a blanket?"
-            "Which animal can hop and has a pouch?"
-            "What do you call a baby duck?"
-            "What do you use to tie your shoes?"
-            "How many wings does a butterfly have?"
-            "What do you wear to protect your eyes from the sun?"
-            "What do you do with a birthday cake?"
-            "What do you wear on your wrist to tell time?"
-            "What do you call a baby frog?"
-            "What do you eat for breakfast?"
-            "What do you do when you’re sleepy?"
-            "What is the color of the moon?"
-            "How many legs does a spider have?"
-            "Where do turtles live?"
-            "What do you do with a soccer ball?"
-            "What do you call a baby fish?"
-            "What do you wear on your head when riding a bike?"
-            "What do you do when you hear music?"
-        )
-    elif [[ "$API_URL" == "https://gacrypto.gaia.domains/v1/chat/completions" ]]; then
+general_questions=(
+    "What is the capital of France?"
+    "Who wrote 'Romeo and Juliet'?"
+    "What is the largest planet in the solar system?"
+    "What is the chemical symbol for water?"
+    "Who painted the Mona Lisa?"
+    "What is the smallest prime number?"
+    "What is the square root of 64?"
+    "What is the currency of Japan?"
+    "Who invented the telephone?"
+    "What is the longest river in the world?"
+    "What is the freezing point of water in Celsius?"
+    "What is the main gas found in Earth's atmosphere?"
+    "Who was the first president of the United States?"
+    "What is the capital of Australia?"
+    "What is the largest mammal in the world?"
+    "What is the chemical symbol for gold?"
+    "Who discovered gravity?"
+    "What is the capital of Canada?"
+    "What is the smallest continent by land area?"
+    "What is the capital of Italy?"
+    "What is the largest ocean on Earth?"
+    "What is the chemical symbol for oxygen?"
+    "Who wrote 'Hamlet'?"
+    "What is the capital of Germany?"
+    "What is the fastest land animal?"
+    "What is the capital of Brazil?"
+    "What is the chemical symbol for carbon?"
+    "Who was the first man to walk on the moon?"
+    "What is the capital of China?"
+    "What is the tallest mountain in the world?"
+    "Who discovered penicillin?"
+    "What is the largest country by land area?"
+    "Who wrote 'Pride and Prejudice'?"
+    "What is the smallest country in the world?"
+    "Who discovered electricity?"
+    "What is the largest bird in the world?"
+    "Who wrote 'War and Peace'?"
+    "What is the largest lake in the world?"
+    "Who discovered America?"
+    "What is the largest island in the world?"
+    "Who discovered the theory of relativity?"
+    "What is the largest reptile in the world?"
+    "Who wrote '1984'?"
+    "What is the largest fish in the world?"
+    "Who discovered the structure of DNA?"
+    "Who wrote 'The Divine Comedy'?"
+    "What is the largest marsupial in the world?"
+    "Who discovered the electron?"
+    "Who wrote 'The Republic'?"
+    "Who discovered the proton?"
+)
+    elif [[ "$API_URL" == "https://gadao.gaia.domains/v1/chat/completions" ]]; then
         general_questions=(
             "Who is the current President of the United States?"
             "What is the capital of Japan?"
@@ -419,7 +423,7 @@ generate_random_general_question() {
 # Function to handle the API request
 send_request() {
     local message="$1"
-    local api_key="$2"
+    local API_KEY_DIR="$2"
 
     echo "📬 Sending Question to $API_NAME: $message"
 
@@ -434,7 +438,7 @@ EOF
     )
 
     response=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \
-        -H "Authorization: Bearer $api_key" \
+        -H "Authorization: Bearer $API_KEY_DIR" \
         -H "Accept: application/json" \
         -H "Content-Type: application/json" \
         -d "$json_data")
@@ -456,40 +460,21 @@ EOF
         fi
     else
         echo "⚠️ [ERROR] API request failed | Status: $http_status | Retrying..."
-        sleep 5
+        sleep 0
     fi
 
     # Set sleep time based on API URL
     if [[ "$API_URL" == "https://hyper.gaia.domains/v1/chat/completions" ]]; then
-        echo "⏳ Sleeping for 5 seconds (hyper API)..."
-        sleep 5
+        echo "⏳ Sleeping for 2 seconds (hyper API)..."
+        sleep 2
     elif [[ "$API_URL" == "https://soneium.gaia.domains/v1/chat/completions" ]]; then
         echo "⏳ Sleeping for 2 seconds (soneium API)..."
         sleep 2
-    elif [[ "$API_URL" == "https://gacrypto.gaia.domains/v1/chat/completions" ]]; then
-        echo "⏳ No sleep for gacrypto API..."
+    elif [[ "$API_URL" == "https://gadao.gaia.domains/v1/chat/completions" ]]; then
+        echo "⏳ No sleep for gadao API..."
         sleep 0
     fi
 }
-
-# Asking for API Key (loops until a valid key is provided)
-while true; do
-    echo -n "Enter your API Key: "
-    read -r api_key
-
-    if [ -z "$api_key" ]; then
-        echo "❌ Error: API Key is required!"
-        echo "🔄 Restarting the installer..."
-
-        # Restart installer
-        rm -rf GaiaNodeInstallet.sh
-        curl -O https://raw.githubusercontent.com/abhiag/Gaianet_installer/main/GaiaNodeInstallet.sh && chmod +x GaiaNodeInstallet.sh && ./GaiaNodeInstallet.sh
-
-        exit 1
-    else
-        break  # Exit loop if API key is provided
-    fi
-done
 
 # Asking for duration
 echo -n "⏳ How many hours do you want the bot to run? "
@@ -524,5 +509,5 @@ while true; do
     fi
 
     random_message=$(generate_random_general_question)
-    send_request "$random_message" "$api_key"
+    send_request "$random_message" "$API_KEY_DIR"
 done
