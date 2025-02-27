@@ -284,13 +284,6 @@ echo "==============================================================="
     echo "==============================================================="
 
 
-
-# ...existing menu options...
-
-echo -e "9) \e[1;46m\e[97m🔍  Check Your Gaia Node ID & Device ID\e[0m"
-# ...existing option 9 description...
-
-# Add new menu options here
 echo -e "11) \e[1;44m\e[97m📊 Check Node Performance\e[0m"
 echo -e "    \e[1;34m🔍 Monitor node status and system resources\e[0m"
 echo -e "    \e[1;34m📈 View real-time performance metrics\e[0m"
@@ -301,7 +294,27 @@ echo -e "    \e[1;35m🔌 Modify the node's listening port\e[0m"
 echo -e "    \e[1;35m⚙️ Update port configuration safely\e[0m"
 echo -e "    \e[1;35m🔄 Automatic restart after changes\e[0m"
 
+
+echo -e "13) \e[1;43m\e[97m💻 Force Laptop GPU Installation Mode\e[0m"
+echo -e "    \e[1;33m🔧 Install in laptop GPU mode even without GPU\e[0m"
+echo -e "    \e[1;33m⚠️ Advanced users only - May affect performance\e[0m"
+echo -e "    \e[1;33m🛠️ Uses laptop-optimized configuration\e[0m"
+
+echo -e "14) \e[1;42m\e[97m🖥️ Force Desktop GPU Installation Mode\e[0m"
+echo -e "    \e[1;32m🔧 Install in desktop GPU mode even without GPU\e[0m"
+echo -e "    \e[1;32m⚠️ Advanced users only - May affect performance\e[0m"
+echo -e "    \e[1;32m🛠️ Uses desktop-optimized configuration\e[0m"
+
+
+
+
 echo "==============================================================="
+
+
+
+
+
+
 echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
 # ...existing danger zone...
 
@@ -463,6 +476,30 @@ echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
         ;;
     
 
+
+    13)
+        echo "Installing in forced Laptop GPU mode..."
+        rm -rf 1.sh
+        curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+        chmod +x 1.sh
+        # Force laptop GPU config
+        sed -i 's|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config1.json"|g' 1.sh
+        # Skip GPU checks
+        sed -i 's|if check_nvidia_gpu; then|if true; then|g' 1.sh
+        ./1.sh
+        ;;
+
+    14)
+        echo "Installing in forced Desktop GPU mode..."
+        rm -rf 1.sh
+        curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
+        chmod +x 1.sh
+        # Force desktop GPU config
+        sed -i 's|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config3.json"|g' 1.sh
+        # Skip GPU checks
+        sed -i 's|if check_nvidia_gpu; then|if true; then|g' 1.sh
+        ./1.sh
+        ;;
 
 
 
