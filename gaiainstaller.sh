@@ -474,31 +474,11 @@ echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
 
 
     13)
-        echo "Installing in forced Laptop GPU mode..."
-        rm -rf 1.sh
-        curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
-        chmod +x 1.sh
-        # Force laptop GPU config
-        sed -i 's|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config1.json"|g' 1.sh
-        # Skip GPU checks
-        sed -i 's|if check_nvidia_gpu; then|if true; then|g' 1.sh
-        ./1.sh
+        ./force_gpu_install.sh laptop
         ;;
-
     14)
-        echo "Installing in forced Desktop GPU mode..."
-        rm -rf 1.sh
-        curl -O https://raw.githubusercontent.com/abhiag/Gaiatest/main/1.sh
-        chmod +x 1.sh
-        # Force desktop GPU config
-        sed -i 's|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json"|CONFIG_URL="https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config3.json"|g' 1.sh
-        # Skip GPU checks
-        sed -i 's|if check_nvidia_gpu; then|if true; then|g' 1.sh
-        ./1.sh
+        ./force_gpu_install.sh desktop
         ;;
-
-
-
 
         0)
             echo "Exiting..."
