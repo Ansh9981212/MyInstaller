@@ -295,17 +295,13 @@ echo -e "    \e[1;35m⚙️ Update port configuration safely\e[0m"
 echo -e "    \e[1;35m🔄 Automatic restart after changes\e[0m"
 
 
-echo -e "13) \e[1;43m\e[97m💻 Force Laptop GPU Installation Mode\e[0m"
-echo -e "    \e[1;33m🔧 Install in laptop GPU mode even without GPU\e[0m"
-echo -e "    \e[1;33m⚠️ Advanced users only - May affect performance\e[0m"
-echo -e "    \e[1;33m🛠️ Uses laptop-optimized configuration\e[0m"
+echo -e "13) \e[1;43m\e[97m💻 Force Laptop GPU Installation\e[0m"
+echo -e "    \e[1;33m🔧 Install with laptop GPU mode (even without GPU)\e[0m"
+echo -e "    \e[1;33m⚠️ Advanced users only\e[0m"
 
-echo -e "14) \e[1;42m\e[97m🖥️ Force Desktop GPU Installation Mode\e[0m"
-echo -e "    \e[1;32m🔧 Install in desktop GPU mode even without GPU\e[0m"
-echo -e "    \e[1;32m⚠️ Advanced users only - May affect performance\e[0m"
-echo -e "    \e[1;32m🛠️ Uses desktop-optimized configuration\e[0m"
-
-
+echo -e "14) \e[1;42m\e[97m🖥️ Force Desktop GPU Installation\e[0m"
+echo -e "    \e[1;32m🔧 Install with desktop GPU mode (even without GPU)\e[0m"
+echo -e "    \e[1;32m⚠️ Advanced users only\e[0m"
 
 
 echo "==============================================================="
