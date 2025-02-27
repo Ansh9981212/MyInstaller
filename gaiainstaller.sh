@@ -36,6 +36,19 @@ else
     echo "✅ lsof is already installed."
 fi
 
+
+# Add after other package checks
+if ! command -v jq &> /dev/null; then
+    echo "❌ jq is not installed. Installing jq..."
+    sudo apt update && sudo apt install -y jq
+else
+    echo "✅ jq is already installed."
+fi
+
+
+
+
+
 # Function to list active screen sessions and allow user to select one
 select_screen_session() {
     while true; do
@@ -83,6 +96,108 @@ select_screen_session() {
         break
     done
 }
+
+
+
+# Add new functions here
+check_node_status() {
+    if pgrep -f "gaianet" > /dev/null; then
+        if sudo lsof -i :8080 >/dev/null 2>&1; then
+            echo "✅ GaiaNet node is running on port 8080"
+            return 0
+        else
+            echo "❌ GaiaNet process exists but port 8080 is not active"
+            return 1
+        fi
+    else
+        echo "❌ GaiaNet node is not running"
+        return 1
+    fi
+}
+
+check_node_performance() {
+    echo "📊 GaiaNet Node Performance Monitor"
+    echo "=================================="
+    
+    check_node_status
+    
+    echo -e "\n🔍 Node Information:"
+    NODE_INFO=$(~/gaianet/bin/gaianet info 2>/dev/null)
+    if [ -n "$NODE_INFO" ]; then
+        echo "$NODE_INFO"
+    else
+        echo "❌ Unable to fetch node information"
+    fi
+    
+    echo -e "\n💻 System Resources:"
+    echo "CPU Usage: $(top -bn1 | grep "Cpu(s)" | awk '{print $2}')%"
+    echo "Memory Usage: $(free -m | awk 'NR==2{printf "%.2f%%", $3*100/$2}')"
+    echo "Disk Usage: $(df -h / | awk 'NR==2{print $5}')"
+    
+    echo -e "\n🌐 Network Status:"
+    if ping -c 1 gaia.domains &> /dev/null; then
+        echo "✅ Network connection is active"
+    else
+        echo "❌ Network connection issues detected"
+    fi
+}
+
+change_node_port() {
+    echo "🔧 Port Configuration"
+    echo "==================="
+    
+    current_port=$(sudo lsof -i -P -n | grep LISTEN | grep gaianet | awk '{print $9}' | cut -d':' -f2)
+    echo "Current port: ${current_port:-8080}"
+    
+    while true; do
+        read -rp "Enter new port number (1024-65535, press Enter to keep current): " new_port
+        
+        if [ -z "$new_port" ]; then
+            echo "Keeping current port configuration"
+            return
+        fi
+        
+        if [[ "$new_port" =~ ^[0-9]+$ ]] && [ "$new_port" -ge 1024 ] && [ "$new_port" -le 65535 ]; then
+            break
+        else
+            echo "❌ Invalid port number. Please enter a number between 1024 and 65535"
+        fi
+    done
+    
+    echo "Stopping GaiaNet node..."
+    ~/gaianet/bin/gaianet stop
+    
+    config_file="$HOME/.gaianet/config.json"
+    if [ -f "$config_file" ]; then
+        cp "$config_file" "${config_file}.backup"
+        
+        temp_file=$(mktemp)
+        jq ".port = $new_port" "$config_file" > "$temp_file" && mv "$temp_file" "$config_file"
+        
+        echo "✅ Port updated to $new_port"
+        
+        echo "🔄 Restarting GaiaNet node..."
+        ~/gaianet/bin/gaianet start
+        
+        sleep 2
+        if sudo lsof -i :"$new_port" > /dev/null; then
+            echo "✅ GaiaNet node is running on port $new_port"
+        else
+            echo "❌ Failed to start node on port $new_port"
+            echo "Restoring backup configuration..."
+            mv "${config_file}.backup" "$config_file"
+            ~/gaianet/bin/gaianet start
+        fi
+    else
+        echo "❌ Configuration file not found"
+    fi
+}
+
+# ...existing while true loop follows...
+
+
+
+
 
 while true; do
     clear
@@ -167,6 +282,31 @@ echo "==============================================================="
     echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
     echo -e "10) \e[1;31m🗑️  Uninstall GaiaNet Node (Risky Operation)\e[0m"
     echo "==============================================================="
+
+
+
+# ...existing menu options...
+
+echo -e "9) \e[1;46m\e[97m🔍  Check Your Gaia Node ID & Device ID\e[0m"
+# ...existing option 9 description...
+
+# Add new menu options here
+echo -e "11) \e[1;44m\e[97m📊 Check Node Performance\e[0m"
+echo -e "    \e[1;34m🔍 Monitor node status and system resources\e[0m"
+echo -e "    \e[1;34m📈 View real-time performance metrics\e[0m"
+echo -e "    \e[1;34m🌡️ Check system health and connectivity\e[0m"
+
+echo -e "12) \e[1;45m\e[97m🔧 Change Node Port\e[0m"
+echo -e "    \e[1;35m🔌 Modify the node's listening port\e[0m"
+echo -e "    \e[1;35m⚙️ Update port configuration safely\e[0m"
+echo -e "    \e[1;35m🔄 Automatic restart after changes\e[0m"
+
+echo "==============================================================="
+echo -e "\e[1;91m⚠️  DANGER ZONE:\e[0m"
+# ...existing danger zone...
+
+
+
     
     echo -e "0) \e[1;31m❌  Exit Installer\e[0m"
     echo "==============================================================="
@@ -311,6 +451,21 @@ echo "==============================================================="
                 echo "Uninstallation aborted."
             fi
             ;;
+
+
+
+    
+    11)
+        check_node_performance
+        ;;
+    12)
+        change_node_port
+        ;;
+    
+
+
+
+
 
         0)
             echo "Exiting..."
